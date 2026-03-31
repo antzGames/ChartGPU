@@ -1,12 +1,22 @@
-import scatterWgsl from '../shaders/scatter.wgsl?raw';
-import type { ResolvedScatterSeriesConfig } from '../config/OptionResolver';
-import type { CartesianSeriesData } from '../config/types';
-import type { LinearScale } from '../utils/scales';
-import { parseCssColorToRgba01 } from '../utils/colors';
-import type { GridArea } from './createGridRenderer';
-import { createRenderPipeline, createUniformBuffer, writeUniformBuffer } from './rendererUtils';
-import { getPointCount, getX, getY, getSize, computeRawBoundsFromCartesianData } from '../data/cartesianData';
-import type { PipelineCache } from '../core/PipelineCache';
+import scatterWgsl from "../shaders/scatter.wgsl?raw";
+import type { ResolvedScatterSeriesConfig } from "../config/OptionResolver";
+import type { CartesianSeriesData } from "../config/types";
+import type { LinearScale } from "../utils/scales";
+import { parseCssColorToRgba01 } from "../utils/colors";
+import type { GridArea } from "./createGridRenderer";
+import {
+  createRenderPipeline,
+  createUniformBuffer,
+  writeUniformBuffer,
+} from "./rendererUtils";
+import {
+  getPointCount,
+  getX,
+  getY,
+  getSize,
+  computeRawBoundsFromCartesianData,
+} from "../data/cartesianData";
+import type { PipelineCache } from "../core/PipelineCache";
 
 export interface ScatterRenderer {
   prepare(
@@ -14,7 +24,7 @@ export interface ScatterRenderer {
     data: CartesianSeriesData,
     xScale: LinearScale,
     yScale: LinearScale,
-    gridArea?: GridArea
+    gridArea?: GridArea,
   ): void;
   render(passEncoder: GPURenderPassEncoder): void;
   dispose(): void;
@@ -43,15 +53,17 @@ export interface ScatterRendererOptions {
 
 type Rgba = readonly [r: number, g: number, b: number, a: number];
 
-const DEFAULT_TARGET_FORMAT: GPUTextureFormat = 'bgra8unorm';
+const DEFAULT_TARGET_FORMAT: GPUTextureFormat = "bgra8unorm";
 const DEFAULT_SCATTER_RADIUS_CSS_PX = 4;
 const INSTANCE_STRIDE_BYTES = 16; // center.xy, radiusPx, pad
 const INSTANCE_STRIDE_FLOATS = INSTANCE_STRIDE_BYTES / 4;
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
-const clampInt = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v | 0));
+const clampInt = (v: number, lo: number, hi: number): number =>
+  Math.min(hi, Math.max(lo, v | 0));
 
-const parseSeriesColorToRgba01 = (color: string): Rgba => parseCssColorToRgba01(color) ?? ([0, 0, 0, 1] as const);
+const parseSeriesColorToRgba01 = (color: string): Rgba =>
+  parseCssColorToRgba01(color) ?? ([0, 0, 0, 1] as const);
 
 const nextPow2 = (v: number): number => {
   if (!Number.isFinite(v) || v <= 0) return 1;
@@ -62,13 +74,19 @@ const nextPow2 = (v: number): number => {
 const computeClipAffineFromScale = (
   scale: LinearScale,
   v0: number,
-  v1: number
+  v1: number,
 ): { readonly a: number; readonly b: number } => {
   const p0 = scale.scale(v0);
   const p1 = scale.scale(v1);
 
   // If the domain sample is degenerate or non-finite, fall back to constant output.
-  if (!Number.isFinite(v0) || !Number.isFinite(v1) || v0 === v1 || !Number.isFinite(p0) || !Number.isFinite(p1)) {
+  if (
+    !Number.isFinite(v0) ||
+    !Number.isFinite(v1) ||
+    v0 === v1 ||
+    !Number.isFinite(p0) ||
+    !Number.isFinite(p1)
+  ) {
     return { a: 0, b: Number.isFinite(p0) ? p0 : 0 };
   }
 
@@ -77,7 +95,13 @@ const computeClipAffineFromScale = (
   return { a: Number.isFinite(a) ? a : 0, b: Number.isFinite(b) ? b : 0 };
 };
 
-const writeTransformMat4F32 = (out: Float32Array, ax: number, bx: number, ay: number, by: number): void => {
+const writeTransformMat4F32 = (
+  out: Float32Array,
+  ax: number,
+  bx: number,
+  ay: number,
+  by: number,
+): void => {
   // Column-major mat4x4 for: clip = M * vec4(x, y, 0, 1)
   out[0] = ax;
   out[1] = 0;
@@ -98,8 +122,13 @@ const writeTransformMat4F32 = (out: Float32Array, ax: number, bx: number, ay: nu
 };
 
 const computePlotScissorDevicePx = (
-  gridArea: GridArea
-): { readonly x: number; readonly y: number; readonly w: number; readonly h: number } => {
+  gridArea: GridArea,
+): {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+} => {
   const { canvasWidth, canvasHeight, devicePixelRatio } = gridArea;
 
   const plotLeftDevice = gridArea.left * devicePixelRatio;
@@ -107,34 +136,67 @@ const computePlotScissorDevicePx = (
   const plotTopDevice = gridArea.top * devicePixelRatio;
   const plotBottomDevice = canvasHeight - gridArea.bottom * devicePixelRatio;
 
-  const scissorX = clampInt(Math.floor(plotLeftDevice), 0, Math.max(0, canvasWidth));
-  const scissorY = clampInt(Math.floor(plotTopDevice), 0, Math.max(0, canvasHeight));
-  const scissorR = clampInt(Math.ceil(plotRightDevice), 0, Math.max(0, canvasWidth));
-  const scissorB = clampInt(Math.ceil(plotBottomDevice), 0, Math.max(0, canvasHeight));
+  const scissorX = clampInt(
+    Math.floor(plotLeftDevice),
+    0,
+    Math.max(0, canvasWidth),
+  );
+  const scissorY = clampInt(
+    Math.floor(plotTopDevice),
+    0,
+    Math.max(0, canvasHeight),
+  );
+  const scissorR = clampInt(
+    Math.ceil(plotRightDevice),
+    0,
+    Math.max(0, canvasWidth),
+  );
+  const scissorB = clampInt(
+    Math.ceil(plotBottomDevice),
+    0,
+    Math.max(0, canvasHeight),
+  );
   const scissorW = Math.max(0, scissorR - scissorX);
   const scissorH = Math.max(0, scissorB - scissorY);
 
   return { x: scissorX, y: scissorY, w: scissorW, h: scissorH };
 };
 
-export function createScatterRenderer(device: GPUDevice, options?: ScatterRendererOptions): ScatterRenderer {
+export function createScatterRenderer(
+  device: GPUDevice,
+  options?: ScatterRendererOptions,
+): ScatterRenderer {
   let disposed = false;
   const targetFormat = options?.targetFormat ?? DEFAULT_TARGET_FORMAT;
   // Be resilient: coerce invalid values to 1 (no MSAA).
   const sampleCountRaw = options?.sampleCount ?? 1;
-  const sampleCount = Number.isFinite(sampleCountRaw) ? Math.max(1, Math.floor(sampleCountRaw)) : 1;
+  const sampleCount = Number.isFinite(sampleCountRaw)
+    ? Math.max(1, Math.floor(sampleCountRaw))
+    : 1;
   const pipelineCache = options?.pipelineCache;
 
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
+      },
     ],
   });
 
   // VSUniforms: mat4x4 (64) + viewportPx vec2 (8) + pad vec2 (8) = 80 bytes.
-  const vsUniformBuffer = createUniformBuffer(device, 80, { label: 'scatterRenderer/vsUniforms' });
-  const fsUniformBuffer = createUniformBuffer(device, 16, { label: 'scatterRenderer/fsUniforms' });
+  const vsUniformBuffer = createUniformBuffer(device, 80, {
+    label: "scatterRenderer/vsUniforms",
+  });
+  const fsUniformBuffer = createUniformBuffer(device, 16, {
+    label: "scatterRenderer/fsUniforms",
+  });
 
   // Reused CPU-side staging for uniform writes (avoid per-frame allocations).
   const vsUniformScratchBuffer = new ArrayBuffer(80);
@@ -152,36 +214,44 @@ export function createScatterRenderer(device: GPUDevice, options?: ScatterRender
   const pipeline = createRenderPipeline(
     device,
     {
-      label: 'scatterRenderer/pipeline',
+      label: "scatterRenderer/pipeline",
       bindGroupLayouts: [bindGroupLayout],
       vertex: {
         code: scatterWgsl,
-        label: 'scatter.wgsl',
+        label: "scatter.wgsl",
         buffers: [
           {
             arrayStride: INSTANCE_STRIDE_BYTES,
-            stepMode: 'instance',
+            stepMode: "instance",
             attributes: [
-              { shaderLocation: 0, format: 'float32x2', offset: 0 },
-              { shaderLocation: 1, format: 'float32', offset: 8 },
+              { shaderLocation: 0, format: "float32x2", offset: 0 },
+              { shaderLocation: 1, format: "float32", offset: 8 },
             ],
           },
         ],
       },
       fragment: {
         code: scatterWgsl,
-        label: 'scatter.wgsl',
+        label: "scatter.wgsl",
         formats: targetFormat,
         // Standard alpha blending (circle AA uses alpha, and series color may be translucent).
         blend: {
-          color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-          alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+          color: {
+            operation: "add",
+            srcFactor: "src-alpha",
+            dstFactor: "one-minus-src-alpha",
+          },
+          alpha: {
+            operation: "add",
+            srcFactor: "one",
+            dstFactor: "one-minus-src-alpha",
+          },
         },
       },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      primitive: { topology: "triangle-list", cullMode: "none" },
       multisample: { count: sampleCount },
     },
-    pipelineCache
+    pipelineCache,
   );
 
   let instanceBuffer: GPUBuffer | null = null;
@@ -192,10 +262,15 @@ export function createScatterRenderer(device: GPUDevice, options?: ScatterRender
   let lastCanvasWidth = 0;
   let lastCanvasHeight = 0;
   let lastViewportPx: readonly [number, number] = [1, 1];
-  let lastScissor: { readonly x: number; readonly y: number; readonly w: number; readonly h: number } | null = null;
+  let lastScissor: {
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+  } | null = null;
 
   const assertNotDisposed = (): void => {
-    if (disposed) throw new Error('ScatterRenderer is disposed.');
+    if (disposed) throw new Error("ScatterRenderer is disposed.");
   };
 
   const ensureCpuInstanceCapacityFloats = (requiredFloats: number): void => {
@@ -211,7 +286,7 @@ export function createScatterRenderer(device: GPUDevice, options?: ScatterRender
     ay: number,
     by: number,
     viewportW: number,
-    viewportH: number
+    viewportH: number,
   ): void => {
     const w = Number.isFinite(viewportW) && viewportW > 0 ? viewportW : 1;
     const h = Number.isFinite(viewportH) && viewportH > 0 ? viewportH : 1;
@@ -226,18 +301,36 @@ export function createScatterRenderer(device: GPUDevice, options?: ScatterRender
     lastViewportPx = [w, h];
   };
 
-  const prepare: ScatterRenderer['prepare'] = (seriesConfig, data, xScale, yScale, gridArea) => {
+  const prepare: ScatterRenderer["prepare"] = (
+    seriesConfig,
+    data,
+    xScale,
+    yScale,
+    gridArea,
+  ) => {
     assertNotDisposed();
 
     const bounds = computeRawBoundsFromCartesianData(data);
-    const { xMin, xMax, yMin, yMax } = bounds ?? { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
+    const { xMin, xMax, yMin, yMax } = bounds ?? {
+      xMin: 0,
+      xMax: 1,
+      yMin: 0,
+      yMax: 1,
+    };
     const { a: ax, b: bx } = computeClipAffineFromScale(xScale, xMin, xMax);
     const { a: ay, b: by } = computeClipAffineFromScale(yScale, yMin, yMax);
 
     if (gridArea) {
       lastCanvasWidth = gridArea.canvasWidth;
       lastCanvasHeight = gridArea.canvasHeight;
-      writeVsUniforms(ax, bx, ay, by, gridArea.canvasWidth, gridArea.canvasHeight);
+      writeVsUniforms(
+        ax,
+        bx,
+        ay,
+        by,
+        gridArea.canvasWidth,
+        gridArea.canvasHeight,
+      );
       lastScissor = computePlotScissorDevicePx(gridArea);
     } else {
       // Backward-compatible: keep rendering with the last known viewport (or safe default).
@@ -257,20 +350,29 @@ export function createScatterRenderer(device: GPUDevice, options?: ScatterRender
 
     const seriesSymbolSize = seriesConfig.symbolSize;
     // Scratch tuple for symbolSize function: reuse to avoid per-point allocations
-    const scratchTuple: [number, number, number | undefined] = [0, 0, undefined];
+    const scratchTuple: [number, number, number | undefined] = [
+      0,
+      0,
+      undefined,
+    ];
 
     const getSeriesSizeCssPx =
-      typeof seriesSymbolSize === 'function'
+      typeof seriesSymbolSize === "function"
         ? (x: number, y: number, size: number | undefined): number => {
             scratchTuple[0] = x;
             scratchTuple[1] = y;
             scratchTuple[2] = size;
             const v = seriesSymbolSize(scratchTuple);
-            return typeof v === 'number' && Number.isFinite(v) ? v : DEFAULT_SCATTER_RADIUS_CSS_PX;
+            return typeof v === "number" && Number.isFinite(v)
+              ? v
+              : DEFAULT_SCATTER_RADIUS_CSS_PX;
           }
-        : typeof seriesSymbolSize === 'number' && Number.isFinite(seriesSymbolSize)
-          ? (_x: number, _y: number, _size: number | undefined): number => seriesSymbolSize
-          : (_x: number, _y: number, _size: number | undefined): number => DEFAULT_SCATTER_RADIUS_CSS_PX;
+        : typeof seriesSymbolSize === "number" &&
+            Number.isFinite(seriesSymbolSize)
+          ? (_x: number, _y: number, _size: number | undefined): number =>
+              seriesSymbolSize
+          : (_x: number, _y: number, _size: number | undefined): number =>
+              DEFAULT_SCATTER_RADIUS_CSS_PX;
 
     const count = getPointCount(data);
     ensureCpuInstanceCapacityFloats(count * INSTANCE_STRIDE_FLOATS);
@@ -285,7 +387,9 @@ export function createScatterRenderer(device: GPUDevice, options?: ScatterRender
       // Per-point size from data overrides series.symbolSize
       const pointSize = getSize(data, i);
       const sizeCss = pointSize ?? getSeriesSizeCssPx(x, y, pointSize);
-      const radiusCss = Number.isFinite(sizeCss) ? Math.max(0, sizeCss) : DEFAULT_SCATTER_RADIUS_CSS_PX;
+      const radiusCss = Number.isFinite(sizeCss)
+        ? Math.max(0, sizeCss)
+        : DEFAULT_SCATTER_RADIUS_CSS_PX;
       const radiusDevicePx = hasValidDpr ? radiusCss * dpr : radiusCss;
       if (!(radiusDevicePx > 0)) continue;
 
@@ -300,7 +404,10 @@ export function createScatterRenderer(device: GPUDevice, options?: ScatterRender
     const requiredBytes = Math.max(4, instanceCount * INSTANCE_STRIDE_BYTES);
 
     if (!instanceBuffer || instanceBuffer.size < requiredBytes) {
-      const grownBytes = Math.max(Math.max(4, nextPow2(requiredBytes)), instanceBuffer ? instanceBuffer.size : 0);
+      const grownBytes = Math.max(
+        Math.max(4, nextPow2(requiredBytes)),
+        instanceBuffer ? instanceBuffer.size : 0,
+      );
       if (instanceBuffer) {
         try {
           instanceBuffer.destroy();
@@ -309,24 +416,35 @@ export function createScatterRenderer(device: GPUDevice, options?: ScatterRender
         }
       }
       instanceBuffer = device.createBuffer({
-        label: 'scatterRenderer/instanceBuffer',
+        label: "scatterRenderer/instanceBuffer",
         size: grownBytes,
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
       });
     }
 
     if (instanceBuffer && instanceCount > 0) {
-      device.queue.writeBuffer(instanceBuffer, 0, cpuInstanceStagingBuffer, 0, instanceCount * INSTANCE_STRIDE_BYTES);
+      device.queue.writeBuffer(
+        instanceBuffer,
+        0,
+        cpuInstanceStagingBuffer,
+        0,
+        instanceCount * INSTANCE_STRIDE_BYTES,
+      );
     }
   };
 
-  const render: ScatterRenderer['render'] = (passEncoder) => {
+  const render: ScatterRenderer["render"] = (passEncoder) => {
     assertNotDisposed();
     if (!instanceBuffer || instanceCount === 0) return;
 
     // Clip to plot area when available.
     if (lastScissor && lastCanvasWidth > 0 && lastCanvasHeight > 0) {
-      passEncoder.setScissorRect(lastScissor.x, lastScissor.y, lastScissor.w, lastScissor.h);
+      passEncoder.setScissorRect(
+        lastScissor.x,
+        lastScissor.y,
+        lastScissor.w,
+        lastScissor.h,
+      );
     }
 
     passEncoder.setPipeline(pipeline);
@@ -340,7 +458,7 @@ export function createScatterRenderer(device: GPUDevice, options?: ScatterRender
     }
   };
 
-  const dispose: ScatterRenderer['dispose'] = () => {
+  const dispose: ScatterRenderer["dispose"] = () => {
     if (disposed) return;
     disposed = true;
 

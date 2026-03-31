@@ -1,17 +1,20 @@
-import scatterDensityBinningWgsl from '../shaders/scatterDensityBinning.wgsl?raw';
-import scatterDensityColormapWgsl from '../shaders/scatterDensityColormap.wgsl?raw';
-import type { RawBounds, ResolvedScatterSeriesConfig } from '../config/OptionResolver';
-import type { LinearScale } from '../utils/scales';
-import { parseCssColorToRgba01 } from '../utils/colors';
-import type { GridArea } from './createGridRenderer';
+import scatterDensityBinningWgsl from "../shaders/scatterDensityBinning.wgsl?raw";
+import scatterDensityColormapWgsl from "../shaders/scatterDensityColormap.wgsl?raw";
+import type {
+  RawBounds,
+  ResolvedScatterSeriesConfig,
+} from "../config/OptionResolver";
+import type { LinearScale } from "../utils/scales";
+import { parseCssColorToRgba01 } from "../utils/colors";
+import type { GridArea } from "./createGridRenderer";
 import {
   createRenderPipeline,
   createShaderModule,
   createUniformBuffer,
   writeUniformBuffer,
   createComputePipeline,
-} from './rendererUtils';
-import type { PipelineCache } from '../core/PipelineCache';
+} from "./rendererUtils";
+import type { PipelineCache } from "../core/PipelineCache";
 
 export interface ScatterDensityRenderer {
   prepare(
@@ -23,7 +26,7 @@ export interface ScatterDensityRenderer {
     xScale: LinearScale,
     yScale: LinearScale,
     gridArea: GridArea,
-    rawBounds?: RawBounds
+    rawBounds?: RawBounds,
   ): void;
   encodeCompute(encoder: GPUCommandEncoder): void;
   render(passEncoder: GPURenderPassEncoder): void;
@@ -45,10 +48,11 @@ export interface ScatterDensityRendererOptions {
   readonly pipelineCache?: PipelineCache;
 }
 
-const DEFAULT_TARGET_FORMAT: GPUTextureFormat = 'bgra8unorm';
+const DEFAULT_TARGET_FORMAT: GPUTextureFormat = "bgra8unorm";
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
-const clampInt = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v | 0));
+const clampInt = (v: number, lo: number, hi: number): number =>
+  Math.min(hi, Math.max(lo, v | 0));
 
 const nextPow2 = (v: number): number => {
   if (!Number.isFinite(v) || v <= 0) return 1;
@@ -59,12 +63,18 @@ const nextPow2 = (v: number): number => {
 const computeClipAffineFromScale = (
   scale: LinearScale,
   v0: number,
-  v1: number
+  v1: number,
 ): { readonly a: number; readonly b: number } => {
   const p0 = scale.scale(v0);
   const p1 = scale.scale(v1);
 
-  if (!Number.isFinite(v0) || !Number.isFinite(v1) || v0 === v1 || !Number.isFinite(p0) || !Number.isFinite(p1)) {
+  if (
+    !Number.isFinite(v0) ||
+    !Number.isFinite(v1) ||
+    v0 === v1 ||
+    !Number.isFinite(p0) ||
+    !Number.isFinite(p1)
+  ) {
     return { a: 0, b: Number.isFinite(p0) ? p0 : 0 };
   }
 
@@ -73,7 +83,13 @@ const computeClipAffineFromScale = (
   return { a: Number.isFinite(a) ? a : 0, b: Number.isFinite(b) ? b : 0 };
 };
 
-const writeTransformMat4F32 = (out: Float32Array, ax: number, bx: number, ay: number, by: number): void => {
+const writeTransformMat4F32 = (
+  out: Float32Array,
+  ax: number,
+  bx: number,
+  ay: number,
+  by: number,
+): void => {
   // Column-major mat4x4 for: clip = M * vec4(x, y, 0, 1)
   out[0] = ax;
   out[1] = 0;
@@ -94,8 +110,13 @@ const writeTransformMat4F32 = (out: Float32Array, ax: number, bx: number, ay: nu
 };
 
 const computePlotScissorDevicePx = (
-  gridArea: GridArea
-): { readonly x: number; readonly y: number; readonly w: number; readonly h: number } => {
+  gridArea: GridArea,
+): {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+} => {
   const { canvasWidth, canvasHeight, devicePixelRatio } = gridArea;
 
   const plotLeftDevice = gridArea.left * devicePixelRatio;
@@ -103,10 +124,26 @@ const computePlotScissorDevicePx = (
   const plotTopDevice = gridArea.top * devicePixelRatio;
   const plotBottomDevice = canvasHeight - gridArea.bottom * devicePixelRatio;
 
-  const scissorX = clampInt(Math.floor(plotLeftDevice), 0, Math.max(0, canvasWidth));
-  const scissorY = clampInt(Math.floor(plotTopDevice), 0, Math.max(0, canvasHeight));
-  const scissorR = clampInt(Math.ceil(plotRightDevice), 0, Math.max(0, canvasWidth));
-  const scissorB = clampInt(Math.ceil(plotBottomDevice), 0, Math.max(0, canvasHeight));
+  const scissorX = clampInt(
+    Math.floor(plotLeftDevice),
+    0,
+    Math.max(0, canvasWidth),
+  );
+  const scissorY = clampInt(
+    Math.floor(plotTopDevice),
+    0,
+    Math.max(0, canvasHeight),
+  );
+  const scissorR = clampInt(
+    Math.ceil(plotRightDevice),
+    0,
+    Math.max(0, canvasWidth),
+  );
+  const scissorB = clampInt(
+    Math.ceil(plotBottomDevice),
+    0,
+    Math.max(0, canvasHeight),
+  );
   const scissorW = Math.max(0, scissorR - scissorX);
   const scissorH = Math.max(0, scissorB - scissorY);
 
@@ -117,29 +154,53 @@ type Rgba01 = readonly [r: number, g: number, b: number, a: number];
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 const lerpRgba = (a: Rgba01, b: Rgba01, t: number): Rgba01 =>
-  [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)] as const;
+  [
+    lerp(a[0], b[0], t),
+    lerp(a[1], b[1], t),
+    lerp(a[2], b[2], t),
+    lerp(a[3], b[3], t),
+  ] as const;
 
-const parseColorStop = (css: string): Rgba01 => parseCssColorToRgba01(css) ?? ([0, 0, 0, 1] as const);
+const parseColorStop = (css: string): Rgba01 =>
+  parseCssColorToRgba01(css) ?? ([0, 0, 0, 1] as const);
 
-const getNamedStops = (name: 'viridis' | 'plasma' | 'inferno'): readonly string[] => {
+const getNamedStops = (
+  name: "viridis" | "plasma" | "inferno",
+): readonly string[] => {
   // Compact stop lists (interpolated to 256 entries). These are standard-ish anchors.
-  if (name === 'plasma') {
-    return ['#0d0887', '#6a00a8', '#b12a90', '#e16462', '#fca636', '#f0f921'] as const;
+  if (name === "plasma") {
+    return [
+      "#0d0887",
+      "#6a00a8",
+      "#b12a90",
+      "#e16462",
+      "#fca636",
+      "#f0f921",
+    ] as const;
   }
-  if (name === 'inferno') {
-    return ['#000004', '#420a68', '#932667', '#dd513a', '#fca50a', '#fcffa4'] as const;
+  if (name === "inferno") {
+    return [
+      "#000004",
+      "#420a68",
+      "#932667",
+      "#dd513a",
+      "#fca50a",
+      "#fcffa4",
+    ] as const;
   }
   // viridis
-  return ['#440154', '#3b528b', '#21918c', '#5ec962', '#fde725'] as const;
+  return ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"] as const;
 };
 
-const buildLutRGBA8 = (colormap: ResolvedScatterSeriesConfig['densityColormap']): Uint8Array<ArrayBuffer> => {
+const buildLutRGBA8 = (
+  colormap: ResolvedScatterSeriesConfig["densityColormap"],
+): Uint8Array<ArrayBuffer> => {
   const stopsCss =
-    typeof colormap === 'string'
+    typeof colormap === "string"
       ? getNamedStops(colormap)
       : Array.isArray(colormap) && colormap.length > 0
         ? colormap
-        : (getNamedStops('viridis') as readonly string[]);
+        : (getNamedStops("viridis") as readonly string[]);
 
   const stops = stopsCss.map(parseColorStop);
   const n = Math.max(2, stops.length);
@@ -161,20 +222,24 @@ const buildLutRGBA8 = (colormap: ResolvedScatterSeriesConfig['densityColormap'])
   return out;
 };
 
-const colormapKey = (colormap: ResolvedScatterSeriesConfig['densityColormap']): string => {
-  if (typeof colormap === 'string') return colormap;
+const colormapKey = (
+  colormap: ResolvedScatterSeriesConfig["densityColormap"],
+): string => {
+  if (typeof colormap === "string") return colormap;
   try {
     return JSON.stringify(colormap);
   } catch {
-    return 'custom';
+    return "custom";
   }
 };
 
-const normalizationToU32 = (n: ResolvedScatterSeriesConfig['densityNormalization']): number => {
+const normalizationToU32 = (
+  n: ResolvedScatterSeriesConfig["densityNormalization"],
+): number => {
   // Must match shader:
   // 0: linear, 1: sqrt, 2: log
-  if (n === 'sqrt') return 1;
-  if (n === 'log') return 2;
+  if (n === "sqrt") return 1;
+  if (n === "log") return 2;
   return 0;
 };
 
@@ -184,31 +249,65 @@ const ZERO_U32_BUFFER: ArrayBuffer = new Uint32Array([0]).buffer;
 
 export function createScatterDensityRenderer(
   device: GPUDevice,
-  options?: ScatterDensityRendererOptions
+  options?: ScatterDensityRendererOptions,
 ): ScatterDensityRenderer {
   let disposed = false;
   const targetFormat = options?.targetFormat ?? DEFAULT_TARGET_FORMAT;
   // Be resilient: coerce invalid values to 1 (no MSAA).
   const sampleCountRaw = options?.sampleCount ?? 1;
-  const sampleCount = Number.isFinite(sampleCountRaw) ? Math.max(1, Math.floor(sampleCountRaw)) : 1;
+  const sampleCount = Number.isFinite(sampleCountRaw)
+    ? Math.max(1, Math.floor(sampleCountRaw))
+    : 1;
   const pipelineCache = options?.pipelineCache;
 
   const computeBindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+      {
+        binding: 0,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "storage" },
+      },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: "storage" },
+      },
     ],
   });
 
   const renderBindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      {
+        binding: 0,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
+      },
       // `scatterDensityColormap.wgsl` declares these as `var<storage, read>`, so they must be read-only-storage.
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'unfilterable-float' } },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: "unfilterable-float" },
+      },
     ],
   });
 
@@ -216,58 +315,67 @@ export function createScatterDensityRenderer(
   // transform(64) + viewportPx(8)+pad(8)=80
   // plotOriginPx u32x2(8) + plotSizePx u32x2(8) = 16 => 96
   // binSize/binCountX/binCountY/start/end/norm u32*6 (24) + pad u32x2 (8) => 128
-  const computeUniformBuffer = createUniformBuffer(device, 128, { label: 'scatterDensity/computeUniforms' });
+  const computeUniformBuffer = createUniformBuffer(device, 128, {
+    label: "scatterDensity/computeUniforms",
+  });
   const computeUniformScratch = new ArrayBuffer(128);
   const computeUniformF32 = new Float32Array(computeUniformScratch, 0, 20); // first 80 bytes (20 f32)
   const computeUniformU32 = new Uint32Array(computeUniformScratch);
 
   // Render uniforms: plotOriginPx(8)+plotSizePx(8)=16; u32*4 (16) + padding to 48.
-  const renderUniformBuffer = createUniformBuffer(device, 48, { label: 'scatterDensity/renderUniforms' });
+  const renderUniformBuffer = createUniformBuffer(device, 48, {
+    label: "scatterDensity/renderUniforms",
+  });
   const renderUniformScratch = new ArrayBuffer(48);
   const renderUniformU32 = new Uint32Array(renderUniformScratch);
 
   const binningModule = createShaderModule(
     device,
     scatterDensityBinningWgsl,
-    'scatterDensityBinning.wgsl',
-    pipelineCache
+    "scatterDensityBinning.wgsl",
+    pipelineCache,
   );
-  const computeLayout = device.createPipelineLayout({ bindGroupLayouts: [computeBindGroupLayout] });
+  const computeLayout = device.createPipelineLayout({
+    bindGroupLayouts: [computeBindGroupLayout],
+  });
   const binPointsPipeline = createComputePipeline(
     device,
     {
-      label: 'scatterDensity/binPointsPipeline',
+      label: "scatterDensity/binPointsPipeline",
       layout: computeLayout,
-      compute: { module: binningModule, entryPoint: 'binPoints' },
+      compute: { module: binningModule, entryPoint: "binPoints" },
     },
-    pipelineCache
+    pipelineCache,
   );
   const reduceMaxPipeline = createComputePipeline(
     device,
     {
-      label: 'scatterDensity/reduceMaxPipeline',
+      label: "scatterDensity/reduceMaxPipeline",
       layout: computeLayout,
-      compute: { module: binningModule, entryPoint: 'reduceMax' },
+      compute: { module: binningModule, entryPoint: "reduceMax" },
     },
-    pipelineCache
+    pipelineCache,
   );
 
   const renderPipeline = createRenderPipeline(
     device,
     {
-      label: 'scatterDensity/renderPipeline',
+      label: "scatterDensity/renderPipeline",
       bindGroupLayouts: [renderBindGroupLayout],
-      vertex: { code: scatterDensityColormapWgsl, label: 'scatterDensityColormap.wgsl' },
+      vertex: {
+        code: scatterDensityColormapWgsl,
+        label: "scatterDensityColormap.wgsl",
+      },
       fragment: {
         code: scatterDensityColormapWgsl,
-        label: 'scatterDensityColormap.wgsl',
+        label: "scatterDensityColormap.wgsl",
         formats: targetFormat,
         blend: undefined,
       },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      primitive: { topology: "triangle-list", cullMode: "none" },
       multisample: { count: sampleCount },
     },
-    pipelineCache
+    pipelineCache,
   );
 
   let binsBuffer: GPUBuffer | null = null;
@@ -276,7 +384,7 @@ export function createScatterDensityRenderer(
 
   let lutTexture: GPUTexture | null = null;
   let lutView: GPUTextureView | null = null;
-  let lastColormapKey = '';
+  let lastColormapKey = "";
 
   let computeBindGroup: GPUBindGroup | null = null;
   let renderBindGroup: GPUBindGroup | null = null;
@@ -289,7 +397,12 @@ export function createScatterDensityRenderer(
   let lastBinSizePx = 0;
   let lastBinCountX = 0;
   let lastBinCountY = 0;
-  let lastPlotScissor: { readonly x: number; readonly y: number; readonly w: number; readonly h: number } | null = null;
+  let lastPlotScissor: {
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+  } | null = null;
   let lastCanvasWidth = 0;
   let lastCanvasHeight = 0;
   let lastNormalizationU32 = 2; // default 'log'
@@ -301,20 +414,20 @@ export function createScatterDensityRenderer(
   let zeroBinsStaging = new Uint32Array(0);
 
   const assertNotDisposed = (): void => {
-    if (disposed) throw new Error('ScatterDensityRenderer is disposed.');
+    if (disposed) throw new Error("ScatterDensityRenderer is disposed.");
   };
 
   const ensureLut = (seriesConfig: ResolvedScatterSeriesConfig): void => {
     const key = colormapKey(seriesConfig.densityColormap);
     if (!lutTexture) {
       lutTexture = device.createTexture({
-        label: 'scatterDensity/lutTexture',
+        label: "scatterDensity/lutTexture",
         size: { width: 256, height: 1, depthOrArrayLayers: 1 },
-        format: 'rgba8unorm',
+        format: "rgba8unorm",
         usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
       });
       lutView = lutTexture.createView();
-      lastColormapKey = '';
+      lastColormapKey = "";
     }
     if (key === lastColormapKey) return;
 
@@ -323,7 +436,7 @@ export function createScatterDensityRenderer(
       { texture: lutTexture! },
       data,
       { bytesPerRow: 256 * 4, rowsPerImage: 1 },
-      { width: 256, height: 1, depthOrArrayLayers: 1 }
+      { width: 256, height: 1, depthOrArrayLayers: 1 },
     );
     lastColormapKey = key;
   };
@@ -354,12 +467,12 @@ export function createScatterDensityRenderer(
     }
 
     binsBuffer = device.createBuffer({
-      label: 'scatterDensity/binsBuffer',
+      label: "scatterDensity/binsBuffer",
       size: binsCapacityU32 * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
     maxBuffer = device.createBuffer({
-      label: 'scatterDensity/maxBuffer',
+      label: "scatterDensity/maxBuffer",
       size: 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
@@ -377,7 +490,7 @@ export function createScatterDensityRenderer(
     if (!binsBuffer || !maxBuffer || !lutView || !lastPointBuffer) return;
     if (!computeBindGroup) {
       computeBindGroup = device.createBindGroup({
-        label: 'scatterDensity/computeBindGroup',
+        label: "scatterDensity/computeBindGroup",
         layout: computeBindGroupLayout,
         entries: [
           { binding: 0, resource: { buffer: computeUniformBuffer } },
@@ -389,7 +502,7 @@ export function createScatterDensityRenderer(
     }
     if (!renderBindGroup) {
       renderBindGroup = device.createBindGroup({
-        label: 'scatterDensity/renderBindGroup',
+        label: "scatterDensity/renderBindGroup",
         layout: renderBindGroupLayout,
         entries: [
           { binding: 0, resource: { buffer: renderUniformBuffer } },
@@ -401,7 +514,7 @@ export function createScatterDensityRenderer(
     }
   };
 
-  const prepare: ScatterDensityRenderer['prepare'] = (
+  const prepare: ScatterDensityRenderer["prepare"] = (
     seriesConfig,
     pointBuffer,
     pointCount,
@@ -410,15 +523,20 @@ export function createScatterDensityRenderer(
     xScale,
     yScale,
     gridArea,
-    rawBounds
+    rawBounds,
   ) => {
     assertNotDisposed();
     hasPrepared = true;
 
     const plotScissor = computePlotScissorDevicePx(gridArea);
     const dpr = gridArea.devicePixelRatio;
-    const binSizeCss = Number.isFinite(seriesConfig.binSize) ? Math.max(1e-6, seriesConfig.binSize) : 2;
-    const binSizePx = Math.max(1, Math.round(binSizeCss * (Number.isFinite(dpr) && dpr > 0 ? dpr : 1)));
+    const binSizeCss = Number.isFinite(seriesConfig.binSize)
+      ? Math.max(1e-6, seriesConfig.binSize)
+      : 2;
+    const binSizePx = Math.max(
+      1,
+      Math.round(binSizeCss * (Number.isFinite(dpr) && dpr > 0 ? dpr : 1)),
+    );
 
     const binCountX = Math.max(1, Math.ceil(plotScissor.w / binSizePx));
     const binCountY = Math.max(1, Math.ceil(plotScissor.h / binSizePx));
@@ -439,12 +557,19 @@ export function createScatterDensityRenderer(
       lastPointCount = pointCount;
       computeDirty = true;
     }
-    if (lastVisibleStart !== visibleStartIndex || lastVisibleEnd !== visibleEndIndex) {
+    if (
+      lastVisibleStart !== visibleStartIndex ||
+      lastVisibleEnd !== visibleEndIndex
+    ) {
       lastVisibleStart = visibleStartIndex;
       lastVisibleEnd = visibleEndIndex;
       computeDirty = true;
     }
-    if (lastBinSizePx !== binSizePx || lastBinCountX !== binCountX || lastBinCountY !== binCountY) {
+    if (
+      lastBinSizePx !== binSizePx ||
+      lastBinCountX !== binCountX ||
+      lastBinCountY !== binCountY
+    ) {
       lastBinSizePx = binSizePx;
       lastBinCountX = binCountX;
       lastBinCountY = binCountY;
@@ -460,7 +585,10 @@ export function createScatterDensityRenderer(
       lastPlotScissor = plotScissor;
       computeDirty = true;
     }
-    if (lastCanvasWidth !== gridArea.canvasWidth || lastCanvasHeight !== gridArea.canvasHeight) {
+    if (
+      lastCanvasWidth !== gridArea.canvasWidth ||
+      lastCanvasHeight !== gridArea.canvasHeight
+    ) {
       lastCanvasWidth = gridArea.canvasWidth;
       lastCanvasHeight = gridArea.canvasHeight;
       computeDirty = true;
@@ -482,7 +610,8 @@ export function createScatterDensityRenderer(
 
     writeTransformMat4F32(computeUniformF32, ax, bx, ay, by);
     computeUniformF32[16] = gridArea.canvasWidth > 0 ? gridArea.canvasWidth : 1;
-    computeUniformF32[17] = gridArea.canvasHeight > 0 ? gridArea.canvasHeight : 1;
+    computeUniformF32[17] =
+      gridArea.canvasHeight > 0 ? gridArea.canvasHeight : 1;
     computeUniformF32[18] = 0;
     computeUniformF32[19] = 0;
 
@@ -512,7 +641,7 @@ export function createScatterDensityRenderer(
     ensureBindGroups();
   };
 
-  const encodeCompute: ScatterDensityRenderer['encodeCompute'] = (encoder) => {
+  const encodeCompute: ScatterDensityRenderer["encodeCompute"] = (encoder) => {
     assertNotDisposed();
     if (!hasPrepared) return;
     if (!computeDirty) return;
@@ -526,13 +655,21 @@ export function createScatterDensityRenderer(
     }
 
     // Clear bins + max.
-    device.queue.writeBuffer(binsBuffer, 0, zeroBinsStaging.buffer, 0, binsCapacityU32 * 4);
+    device.queue.writeBuffer(
+      binsBuffer,
+      0,
+      zeroBinsStaging.buffer,
+      0,
+      binsCapacityU32 * 4,
+    );
     device.queue.writeBuffer(maxBuffer, 0, ZERO_U32_BUFFER);
 
     const binTotal = (lastBinCountX * lastBinCountY) | 0;
     const visibleCount = Math.max(0, (lastVisibleEnd - lastVisibleStart) | 0);
 
-    const pass = encoder.beginComputePass({ label: 'scatterDensity/computePass' });
+    const pass = encoder.beginComputePass({
+      label: "scatterDensity/computePass",
+    });
     pass.setBindGroup(0, computeBindGroup);
 
     pass.setPipeline(binPointsPipeline);
@@ -548,13 +685,18 @@ export function createScatterDensityRenderer(
     computeDirty = false;
   };
 
-  const render: ScatterDensityRenderer['render'] = (passEncoder) => {
+  const render: ScatterDensityRenderer["render"] = (passEncoder) => {
     assertNotDisposed();
     if (!hasPrepared) return;
     if (!renderBindGroup || !lastPlotScissor || !lutView) return;
     if (lastPlotScissor.w <= 0 || lastPlotScissor.h <= 0) return;
 
-    passEncoder.setScissorRect(lastPlotScissor.x, lastPlotScissor.y, lastPlotScissor.w, lastPlotScissor.h);
+    passEncoder.setScissorRect(
+      lastPlotScissor.x,
+      lastPlotScissor.y,
+      lastPlotScissor.w,
+      lastPlotScissor.h,
+    );
     passEncoder.setPipeline(renderPipeline);
     passEncoder.setBindGroup(0, renderBindGroup);
     passEncoder.draw(3);
@@ -564,7 +706,7 @@ export function createScatterDensityRenderer(
     }
   };
 
-  const dispose: ScatterDensityRenderer['dispose'] = () => {
+  const dispose: ScatterDensityRenderer["dispose"] = () => {
     if (disposed) return;
     disposed = true;
 

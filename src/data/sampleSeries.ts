@@ -1,7 +1,16 @@
-import type { CartesianSeriesData, DataPoint, DataPointTuple, SeriesSampling } from '../config/types';
-import { lttbSample } from './lttbSample';
-import { getPointCount, getX, getY, getSize as getPointSize } from './cartesianData';
-import type { XYArraysData, InterleavedXYData } from '../config/types';
+import type {
+  CartesianSeriesData,
+  DataPoint,
+  DataPointTuple,
+  SeriesSampling,
+} from "../config/types";
+import { lttbSample } from "./lttbSample";
+import {
+  getPointCount,
+  getX,
+  getY,
+  getSize as getPointSize,
+} from "./cartesianData";
 
 function clampTargetPoints(targetPoints: number): number {
   const t = Math.floor(targetPoints);
@@ -11,25 +20,34 @@ function clampTargetPoints(targetPoints: number): number {
 /**
  * Type guard for XYArraysData format.
  */
-function isXYArraysData(data: CartesianSeriesData): data is XYArraysData {
+function isXYArraysData(
+  data: CartesianSeriesData,
+): data is import("../config/types").XYArraysData {
   return (
-    typeof data === 'object' &&
+    typeof data === "object" &&
     data !== null &&
     !Array.isArray(data) &&
-    'x' in data &&
-    'y' in data &&
-    typeof (data as any).x === 'object' &&
-    typeof (data as any).y === 'object' &&
-    'length' in (data as any).x &&
-    'length' in (data as any).y
+    "x" in data &&
+    "y" in data &&
+    typeof (data as any).x === "object" &&
+    typeof (data as any).y === "object" &&
+    "length" in (data as any).x &&
+    "length" in (data as any).y
   );
 }
 
 /**
  * Type guard for InterleavedXYData format (ArrayBufferView).
  */
-function isInterleavedXYData(data: CartesianSeriesData): data is InterleavedXYData {
-  return typeof data === 'object' && data !== null && !Array.isArray(data) && ArrayBuffer.isView(data);
+function isInterleavedXYData(
+  data: CartesianSeriesData,
+): data is import("../config/types").InterleavedXYData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    !Array.isArray(data) &&
+    ArrayBuffer.isView(data)
+  );
 }
 
 /**
@@ -48,7 +66,7 @@ function packToFloat32Array(data: CartesianSeriesData): Float32Array {
   return out;
 }
 
-type BucketMode = 'average' | 'max' | 'min';
+type BucketMode = "average" | "max" | "min";
 
 /**
  * Samples CartesianSeriesData using bucket-based strategies (average, max, min).
@@ -58,7 +76,7 @@ type BucketMode = 'average' | 'max' | 'min';
 function sampleByBucketsFromCartesian(
   data: CartesianSeriesData,
   targetPoints: number,
-  mode: BucketMode
+  mode: BucketMode,
 ): DataPointTuple[] {
   const n = getPointCount(data);
   const threshold = clampTargetPoints(targetPoints);
@@ -103,14 +121,18 @@ function sampleByBucketsFromCartesian(
     const xLast = getX(data, lastIndex);
     const yLast = getY(data, lastIndex);
     const sizeLast = getPointSize(data, lastIndex);
-    out[threshold - 1] = sizeLast !== undefined ? [xLast, yLast, sizeLast] : [xLast, yLast];
+    out[threshold - 1] =
+      sizeLast !== undefined ? [xLast, yLast, sizeLast] : [xLast, yLast];
   }
 
   const bucketSize = (n - 2) / (threshold - 2);
 
   for (let bucket = 0; bucket < threshold - 2; bucket++) {
     let rangeStart = Math.floor(bucketSize * bucket) + 1;
-    let rangeEndExclusive = Math.min(Math.floor(bucketSize * (bucket + 1)) + 1, lastIndex);
+    let rangeEndExclusive = Math.min(
+      Math.floor(bucketSize * (bucket + 1)) + 1,
+      lastIndex,
+    );
 
     if (rangeStart >= rangeEndExclusive) {
       rangeStart = Math.min(rangeStart, lastIndex - 1);
@@ -119,7 +141,7 @@ function sampleByBucketsFromCartesian(
 
     let chosen: DataPointTuple | null = null;
 
-    if (mode === 'average') {
+    if (mode === "average") {
       let sumX = 0;
       let sumY = 0;
       let sumSize = 0;
@@ -134,7 +156,7 @@ function sampleByBucketsFromCartesian(
         count++;
 
         const size = getPointSize(data, i);
-        if (typeof size === 'number' && Number.isFinite(size)) {
+        if (typeof size === "number" && Number.isFinite(size)) {
           sumSize += size;
           sizeCount++;
         }
@@ -150,12 +172,13 @@ function sampleByBucketsFromCartesian(
         }
       }
     } else {
-      let bestY = mode === 'max' ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+      let bestY =
+        mode === "max" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
       let bestIndex = rangeStart;
       for (let i = rangeStart; i < rangeEndExclusive; i++) {
         const y = getY(data, i);
         if (!Number.isFinite(y)) continue;
-        if (mode === 'max') {
+        if (mode === "max") {
           if (y > bestY) {
             bestY = y;
             bestIndex = i;
@@ -208,18 +231,18 @@ function sampleByBucketsFromCartesian(
 export function sampleSeriesDataPoints(
   data: CartesianSeriesData,
   sampling: SeriesSampling,
-  samplingThreshold: number
+  samplingThreshold: number,
 ): CartesianSeriesData {
   const threshold = clampTargetPoints(samplingThreshold);
   const pointCount = getPointCount(data);
 
   // Disabled or already under threshold: keep original reference (avoid extra allocations).
-  if (sampling === 'none') return data;
+  if (sampling === "none") return data;
   if (!(threshold > 0)) return data;
   if (pointCount <= threshold) return data;
 
   switch (sampling) {
-    case 'lttb': {
+    case "lttb": {
       // Float32Array fast path
       if (data instanceof Float32Array) {
         return lttbSample(data, threshold);
@@ -240,18 +263,20 @@ export function sampleSeriesDataPoints(
       // DataPoint[] path — filter nulls before LTTB sampling.
       // Nulls represent line-segmentation gaps and will be handled by gap detection
       // in later pipeline stages; LTTB only operates on concrete data points.
-      const nonNullData = (data as ReadonlyArray<DataPoint | null>).filter((p): p is DataPoint => p !== null);
+      const nonNullData = (data as ReadonlyArray<DataPoint | null>).filter(
+        (p): p is DataPoint => p !== null,
+      );
       return lttbSample(nonNullData, threshold);
     }
 
-    case 'average':
-      return sampleByBucketsFromCartesian(data, threshold, 'average');
+    case "average":
+      return sampleByBucketsFromCartesian(data, threshold, "average");
 
-    case 'max':
-      return sampleByBucketsFromCartesian(data, threshold, 'max');
+    case "max":
+      return sampleByBucketsFromCartesian(data, threshold, "max");
 
-    case 'min':
-      return sampleByBucketsFromCartesian(data, threshold, 'min');
+    case "min":
+      return sampleByBucketsFromCartesian(data, threshold, "min");
 
     default: {
       // Defensive for JS callers / widened types.

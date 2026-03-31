@@ -8,14 +8,14 @@
  * @module rendererPool
  */
 
-import { createAreaRenderer } from '../../../renderers/createAreaRenderer';
-import { createLineRenderer } from '../../../renderers/createLineRenderer';
-import { createScatterRenderer } from '../../../renderers/createScatterRenderer';
-import { createScatterDensityRenderer } from '../../../renderers/createScatterDensityRenderer';
-import { createPieRenderer } from '../../../renderers/createPieRenderer';
-import { createCandlestickRenderer } from '../../../renderers/createCandlestickRenderer';
-import { createBarRenderer } from '../../../renderers/createBarRenderer';
-import type { PipelineCache } from '../../PipelineCache';
+import { createAreaRenderer } from "../../../renderers/createAreaRenderer";
+import { createLineRenderer } from "../../../renderers/createLineRenderer";
+import { createScatterRenderer } from "../../../renderers/createScatterRenderer";
+import { createScatterDensityRenderer } from "../../../renderers/createScatterDensityRenderer";
+import { createPieRenderer } from "../../../renderers/createPieRenderer";
+import { createCandlestickRenderer } from "../../../renderers/createCandlestickRenderer";
+import { createBarRenderer } from "../../../renderers/createBarRenderer";
+import type { PipelineCache } from "../../PipelineCache";
 
 /**
  * Configuration for renderer pool creation.
@@ -39,10 +39,16 @@ export interface RendererPoolConfig {
 export interface RendererPoolState {
   readonly areaRenderers: ReadonlyArray<ReturnType<typeof createAreaRenderer>>;
   readonly lineRenderers: ReadonlyArray<ReturnType<typeof createLineRenderer>>;
-  readonly scatterRenderers: ReadonlyArray<ReturnType<typeof createScatterRenderer>>;
-  readonly scatterDensityRenderers: ReadonlyArray<ReturnType<typeof createScatterDensityRenderer>>;
+  readonly scatterRenderers: ReadonlyArray<
+    ReturnType<typeof createScatterRenderer>
+  >;
+  readonly scatterDensityRenderers: ReadonlyArray<
+    ReturnType<typeof createScatterDensityRenderer>
+  >;
   readonly pieRenderers: ReadonlyArray<ReturnType<typeof createPieRenderer>>;
-  readonly candlestickRenderers: ReadonlyArray<ReturnType<typeof createCandlestickRenderer>>;
+  readonly candlestickRenderers: ReadonlyArray<
+    ReturnType<typeof createCandlestickRenderer>
+  >;
   readonly barRenderer: ReturnType<typeof createBarRenderer>;
 }
 
@@ -136,12 +142,20 @@ export function createRendererPool(config: RendererPoolConfig): RendererPool {
   const areaRenderers: Array<ReturnType<typeof createAreaRenderer>> = [];
   const lineRenderers: Array<ReturnType<typeof createLineRenderer>> = [];
   const scatterRenderers: Array<ReturnType<typeof createScatterRenderer>> = [];
-  const scatterDensityRenderers: Array<ReturnType<typeof createScatterDensityRenderer>> = [];
+  const scatterDensityRenderers: Array<
+    ReturnType<typeof createScatterDensityRenderer>
+  > = [];
   const pieRenderers: Array<ReturnType<typeof createPieRenderer>> = [];
-  const candlestickRenderers: Array<ReturnType<typeof createCandlestickRenderer>> = [];
+  const candlestickRenderers: Array<
+    ReturnType<typeof createCandlestickRenderer>
+  > = [];
 
   // Bar renderer is a singleton (one instance handles all bar series)
-  const barRenderer = createBarRenderer(device, { targetFormat, pipelineCache, sampleCount });
+  const barRenderer = createBarRenderer(device, {
+    targetFormat,
+    pipelineCache,
+    sampleCount,
+  });
 
   /**
    * Ensures area renderer count matches the given count.
@@ -154,7 +168,13 @@ export function createRendererPool(config: RendererPoolConfig): RendererPool {
       r?.dispose();
     }
     while (areaRenderers.length < count) {
-      areaRenderers.push(createAreaRenderer(device, { targetFormat, pipelineCache, sampleCount }));
+      areaRenderers.push(
+        createAreaRenderer(device, {
+          targetFormat,
+          pipelineCache,
+          sampleCount,
+        }),
+      );
     }
   }
 
@@ -169,7 +189,13 @@ export function createRendererPool(config: RendererPoolConfig): RendererPool {
       r?.dispose();
     }
     while (lineRenderers.length < count) {
-      lineRenderers.push(createLineRenderer(device, { targetFormat, pipelineCache, sampleCount }));
+      lineRenderers.push(
+        createLineRenderer(device, {
+          targetFormat,
+          pipelineCache,
+          sampleCount,
+        }),
+      );
     }
   }
 
@@ -184,7 +210,13 @@ export function createRendererPool(config: RendererPoolConfig): RendererPool {
       r?.dispose();
     }
     while (scatterRenderers.length < count) {
-      scatterRenderers.push(createScatterRenderer(device, { targetFormat, pipelineCache, sampleCount }));
+      scatterRenderers.push(
+        createScatterRenderer(device, {
+          targetFormat,
+          pipelineCache,
+          sampleCount,
+        }),
+      );
     }
   }
 
@@ -199,7 +231,13 @@ export function createRendererPool(config: RendererPoolConfig): RendererPool {
       r?.dispose();
     }
     while (scatterDensityRenderers.length < count) {
-      scatterDensityRenderers.push(createScatterDensityRenderer(device, { targetFormat, pipelineCache, sampleCount }));
+      scatterDensityRenderers.push(
+        createScatterDensityRenderer(device, {
+          targetFormat,
+          pipelineCache,
+          sampleCount,
+        }),
+      );
     }
   }
 
@@ -214,7 +252,9 @@ export function createRendererPool(config: RendererPoolConfig): RendererPool {
       r?.dispose();
     }
     while (pieRenderers.length < count) {
-      pieRenderers.push(createPieRenderer(device, { targetFormat, pipelineCache, sampleCount }));
+      pieRenderers.push(
+        createPieRenderer(device, { targetFormat, pipelineCache, sampleCount }),
+      );
     }
   }
 
@@ -229,7 +269,13 @@ export function createRendererPool(config: RendererPoolConfig): RendererPool {
       r?.dispose();
     }
     while (candlestickRenderers.length < count) {
-      candlestickRenderers.push(createCandlestickRenderer(device, { targetFormat, pipelineCache, sampleCount }));
+      candlestickRenderers.push(
+        createCandlestickRenderer(device, {
+          targetFormat,
+          pipelineCache,
+          sampleCount,
+        }),
+      );
     }
   }
 

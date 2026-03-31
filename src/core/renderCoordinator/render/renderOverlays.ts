@@ -7,16 +7,22 @@
  * @module renderOverlays
  */
 
-import type { ResolvedChartGPUOptions } from '../../../config/OptionResolver';
-import type { LinearScale } from '../../../utils/scales';
-import type { GridRenderer } from '../../../renderers/createGridRenderer';
-import type { AxisRenderer } from '../../../renderers/createAxisRenderer';
-import type { CrosshairRenderer, CrosshairRenderOptions } from '../../../renderers/createCrosshairRenderer';
-import type { HighlightRenderer, HighlightPoint } from '../../../renderers/createHighlightRenderer';
-import type { GridArea } from '../../../renderers/createGridRenderer';
-import { findNearestPoint } from '../../../interaction/findNearestPoint';
-import { getPointXY } from '../utils/dataPointUtils';
-import { computePlotScissorDevicePx } from '../utils/axisUtils';
+import type { ResolvedChartGPUOptions } from "../../../config/OptionResolver";
+import type { LinearScale } from "../../../utils/scales";
+import type { GridRenderer } from "../../../renderers/createGridRenderer";
+import type { AxisRenderer } from "../../../renderers/createAxisRenderer";
+import type {
+  CrosshairRenderer,
+  CrosshairRenderOptions,
+} from "../../../renderers/createCrosshairRenderer";
+import type {
+  HighlightRenderer,
+  HighlightPoint,
+} from "../../../renderers/createHighlightRenderer";
+import type { GridArea } from "../../../renderers/createGridRenderer";
+import { findNearestPoint } from "../../../interaction/findNearestPoint";
+import { getPointXY } from "../utils/dataPointUtils";
+import { computePlotScissorDevicePx } from "../utils/axisUtils";
 
 const DEFAULT_TICK_COUNT = 5;
 const DEFAULT_CROSSHAIR_LINE_WIDTH_CSS_PX = 1;
@@ -40,7 +46,7 @@ export interface OverlayPrepareContext {
   effectivePointer: {
     hasPointer: boolean;
     isInGrid: boolean;
-    source: 'mouse' | 'sync';
+    source: "mouse" | "sync";
     x: number;
     y: number;
     gridX: number;
@@ -68,7 +74,10 @@ export interface OverlayRenderContext {
  * @param renderers - Overlay renderer instances
  * @param context - Rendering context with scales, options, and pointer state
  */
-export function prepareOverlays(renderers: OverlayRenderers, context: OverlayPrepareContext): void {
+export function prepareOverlays(
+  renderers: OverlayRenderers,
+  context: OverlayPrepareContext,
+): void {
   const {
     currentOptions,
     xScale,
@@ -85,12 +94,19 @@ export function prepareOverlays(renderers: OverlayRenderers, context: OverlayPre
   // Grid preparation - always prepare so hidden grids don't render stale geometry.
   const gridLinesConfig = currentOptions.gridLines;
   const horizontalCount =
-    gridLinesConfig.show && gridLinesConfig.horizontal.show ? gridLinesConfig.horizontal.count : 0;
-  const verticalCount = gridLinesConfig.show && gridLinesConfig.vertical.show ? gridLinesConfig.vertical.count : 0;
+    gridLinesConfig.show && gridLinesConfig.horizontal.show
+      ? gridLinesConfig.horizontal.count
+      : 0;
+  const verticalCount =
+    gridLinesConfig.show && gridLinesConfig.vertical.show
+      ? gridLinesConfig.vertical.count
+      : 0;
 
   // Clear grid when hidden (or when both counts are zero).
   if (horizontalCount === 0 && verticalCount === 0) {
-    renderers.gridRenderer.prepare(gridArea, { lineCount: { horizontal: 0, vertical: 0 } });
+    renderers.gridRenderer.prepare(gridArea, {
+      lineCount: { horizontal: 0, vertical: 0 },
+    });
   } else if (
     horizontalCount > 0 &&
     verticalCount > 0 &&
@@ -108,7 +124,10 @@ export function prepareOverlays(renderers: OverlayRenderers, context: OverlayPre
     });
   } else {
     // Single color (either both directions share a color, or only one direction is enabled).
-    const color = horizontalCount > 0 ? gridLinesConfig.horizontal.color : gridLinesConfig.vertical.color;
+    const color =
+      horizontalCount > 0
+        ? gridLinesConfig.horizontal.color
+        : gridLinesConfig.vertical.color;
     renderers.gridRenderer.prepare(gridArea, {
       lineCount: { horizontal: horizontalCount, vertical: verticalCount },
       color,
@@ -120,20 +139,20 @@ export function prepareOverlays(renderers: OverlayRenderers, context: OverlayPre
     renderers.xAxisRenderer.prepare(
       currentOptions.xAxis,
       xScale,
-      'x',
+      "x",
       gridArea,
       currentOptions.theme.axisLineColor,
       currentOptions.theme.axisTickColor,
-      xTickCount
+      xTickCount,
     );
     renderers.yAxisRenderer.prepare(
       currentOptions.yAxis,
       yScale,
-      'y',
+      "y",
       gridArea,
       currentOptions.theme.axisLineColor,
       currentOptions.theme.axisTickColor,
-      DEFAULT_TICK_COUNT
+      DEFAULT_TICK_COUNT,
     );
   }
 
@@ -142,18 +161,27 @@ export function prepareOverlays(renderers: OverlayRenderers, context: OverlayPre
     const crosshairOptions: CrosshairRenderOptions = {
       showX: true,
       // Sync has no meaningful y, so avoid horizontal line.
-      showY: effectivePointer.source !== 'sync',
+      showY: effectivePointer.source !== "sync",
       color: withAlpha(currentOptions.theme.axisLineColor, 0.6),
       lineWidth: DEFAULT_CROSSHAIR_LINE_WIDTH_CSS_PX,
     };
-    renderers.crosshairRenderer.prepare(effectivePointer.x, effectivePointer.y, gridArea, crosshairOptions);
+    renderers.crosshairRenderer.prepare(
+      effectivePointer.x,
+      effectivePointer.y,
+      gridArea,
+      crosshairOptions,
+    );
     renderers.crosshairRenderer.setVisible(true);
   } else {
     renderers.crosshairRenderer.setVisible(false);
   }
 
   // Highlight preparation (on hover, find nearest point)
-  if (effectivePointer.source === 'mouse' && effectivePointer.hasPointer && effectivePointer.isInGrid) {
+  if (
+    effectivePointer.source === "mouse" &&
+    effectivePointer.hasPointer &&
+    effectivePointer.isInGrid
+  ) {
     if (interactionScales) {
       // findNearestPoint handles visibility filtering internally
       const match = findNearestPoint(
@@ -161,7 +189,7 @@ export function prepareOverlays(renderers: OverlayRenderers, context: OverlayPre
         effectivePointer.gridX,
         effectivePointer.gridY,
         interactionScales.xScale,
-        interactionScales.yScale
+        interactionScales.yScale,
       );
 
       if (match) {
@@ -183,8 +211,13 @@ export function prepareOverlays(renderers: OverlayRenderers, context: OverlayPre
             scissor: plotScissor,
           };
 
-          const seriesColor = currentOptions.series[match.seriesIndex]?.color ?? '#888';
-          renderers.highlightRenderer.prepare(point, seriesColor, DEFAULT_HIGHLIGHT_SIZE_CSS_PX);
+          const seriesColor =
+            currentOptions.series[match.seriesIndex]?.color ?? "#888";
+          renderers.highlightRenderer.prepare(
+            point,
+            seriesColor,
+            DEFAULT_HIGHLIGHT_SIZE_CSS_PX,
+          );
           renderers.highlightRenderer.setVisible(true);
         } else {
           renderers.highlightRenderer.setVisible(false);
@@ -198,4 +231,33 @@ export function prepareOverlays(renderers: OverlayRenderers, context: OverlayPre
   } else {
     renderers.highlightRenderer.setVisible(false);
   }
+}
+
+/**
+ * Renders all overlay elements to the appropriate render passes.
+ *
+ * Grid is rendered in the main pass (background).
+ * Highlight, axes, and crosshair are rendered in the top overlay pass (foreground).
+ *
+ * @param renderers - Overlay renderer instances
+ * @param context - Render pass context
+ */
+export function renderOverlays(
+  renderers: OverlayRenderers,
+  context: OverlayRenderContext,
+): void {
+  const { mainPass, topOverlayPass, hasCartesianSeries } = context;
+
+  // Grid renders in main pass (background)
+  if (renderers.gridRenderer) {
+    renderers.gridRenderer.render(mainPass);
+  }
+
+  // Highlight, axes, crosshair render in top overlay pass (foreground)
+  renderers.highlightRenderer.render(topOverlayPass);
+  if (hasCartesianSeries) {
+    renderers.xAxisRenderer.render(topOverlayPass);
+    renderers.yAxisRenderer.render(topOverlayPass);
+  }
+  renderers.crosshairRenderer.render(topOverlayPass);
 }

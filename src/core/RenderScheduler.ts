@@ -14,6 +14,13 @@
  */
 export type RenderCallback = (deltaTime: number) => void;
 
+import type {
+  ExactFPS,
+  Milliseconds,
+  FrameTimeStats,
+  FrameDropStats,
+} from "../config/types";
+
 /**
  * Represents the state of a render scheduler.
  * All properties are readonly to ensure immutability.
@@ -75,7 +82,7 @@ const internalStateMap = new Map<symbol, RenderSchedulerInternalState>();
  * @returns A new RenderSchedulerState instance
  */
 export function createRenderScheduler(): RenderSchedulerState {
-  const id = Symbol('RenderScheduler');
+  const id = Symbol("RenderScheduler");
   const state: RenderSchedulerState = {
     id,
     running: false,
@@ -117,18 +124,25 @@ export function createRenderScheduler(): RenderSchedulerState {
  * @throws {Error} If scheduler is already running
  * @throws {Error} If state is invalid
  */
-export function startRenderScheduler(state: RenderSchedulerState, callback: RenderCallback): RenderSchedulerState {
+export function startRenderScheduler(
+  state: RenderSchedulerState,
+  callback: RenderCallback,
+): RenderSchedulerState {
   if (!callback) {
-    throw new Error('Render callback is required');
+    throw new Error("Render callback is required");
   }
 
   const internalState = internalStateMap.get(state.id);
   if (!internalState) {
-    throw new Error('Invalid scheduler state. Use createRenderScheduler() to create a new state.');
+    throw new Error(
+      "Invalid scheduler state. Use createRenderScheduler() to create a new state.",
+    );
   }
 
   if (state.running) {
-    throw new Error('RenderScheduler is already running. Call stopRenderScheduler() before starting again.');
+    throw new Error(
+      "RenderScheduler is already running. Call stopRenderScheduler() before starting again.",
+    );
   }
 
   // Update internal state
@@ -151,8 +165,11 @@ export function startRenderScheduler(state: RenderSchedulerState, callback: Rend
     // Record frame timestamp in circular buffer BEFORE rendering
     // Use performance.now() exclusively for exact FPS measurement
     const timestamp = performance.now();
-    currentInternalState.frameTimestamps[currentInternalState.frameTimestampIndex] = timestamp;
-    currentInternalState.frameTimestampIndex = (currentInternalState.frameTimestampIndex + 1) % FRAME_BUFFER_SIZE;
+    currentInternalState.frameTimestamps[
+      currentInternalState.frameTimestampIndex
+    ] = timestamp;
+    currentInternalState.frameTimestampIndex =
+      (currentInternalState.frameTimestampIndex + 1) % FRAME_BUFFER_SIZE;
     if (currentInternalState.frameTimestampCount < FRAME_BUFFER_SIZE) {
       currentInternalState.frameTimestampCount++;
     }
@@ -192,7 +209,11 @@ export function startRenderScheduler(state: RenderSchedulerState, callback: Rend
       // After callback returns, check if dirty was set again (callback-triggered renders for animations)
       // Re-check internal state in case it was destroyed during callback execution
       const nextInternalState = internalStateMap.get(schedulerId);
-      if (nextInternalState && nextInternalState.callback && nextInternalState.dirty) {
+      if (
+        nextInternalState &&
+        nextInternalState.callback &&
+        nextInternalState.dirty
+      ) {
         // Schedule another frame since callback requested a render
         nextInternalState.rafId = requestAnimationFrame(frameHandler);
       }
@@ -224,10 +245,14 @@ export function startRenderScheduler(state: RenderSchedulerState, callback: Rend
  * @returns A new RenderSchedulerState with running set to false
  * @throws {Error} If state is invalid
  */
-export function stopRenderScheduler(state: RenderSchedulerState): RenderSchedulerState {
+export function stopRenderScheduler(
+  state: RenderSchedulerState,
+): RenderSchedulerState {
   const internalState = internalStateMap.get(state.id);
   if (!internalState) {
-    throw new Error('Invalid scheduler state. Use createRenderScheduler() to create a new state.');
+    throw new Error(
+      "Invalid scheduler state. Use createRenderScheduler() to create a new state.",
+    );
   }
 
   internalState.callback = null;
@@ -257,7 +282,9 @@ export function stopRenderScheduler(state: RenderSchedulerState): RenderSchedule
 export function requestRender(state: RenderSchedulerState): void {
   const internalState = internalStateMap.get(state.id);
   if (!internalState) {
-    throw new Error('Invalid scheduler state. Use createRenderScheduler() to create a new state.');
+    throw new Error(
+      "Invalid scheduler state. Use createRenderScheduler() to create a new state.",
+    );
   }
 
   // Mark as dirty
@@ -297,6 +324,156 @@ export function requestRender(state: RenderSchedulerState): void {
  * @param state - The scheduler state
  * @returns Exact FPS measurement
  */
+export function getCurrentFPS(state: RenderSchedulerState): ExactFPS {
+  const internalState = internalStateMap.get(state.id);
+  if (!internalState) {
+    return 0 as ExactFPS;
+  }
+
+  const count = internalState.frameTimestampCount;
+  if (count < 2) {
+    return 0 as ExactFPS; // Need at least 2 frames to calculate FPS
+  }
+
+  // Calculate sum of deltas between consecutive timestamps
+  const timestamps = internalState.frameTimestamps;
+  const bufferSize = FRAME_BUFFER_SIZE;
+  const startIndex =
+    (internalState.frameTimestampIndex - count + bufferSize) % bufferSize;
+
+  let totalDelta = 0;
+  for (let i = 1; i < count; i++) {
+    const prevIndex = (startIndex + i - 1) % bufferSize;
+    const currIndex = (startIndex + i) % bufferSize;
+    const delta = timestamps[currIndex] - timestamps[prevIndex];
+    totalDelta += delta;
+  }
+
+  const avgFrameTime = totalDelta / (count - 1);
+  const fps = avgFrameTime > 0 ? 1000 / avgFrameTime : 0;
+
+  return fps as ExactFPS;
+}
+
+/**
+ * Calculates frame time statistics from the circular buffer.
+ *
+ * Computes min, max, avg, and percentiles (p50, p95, p99) for frame times.
+ * Returns zero stats if insufficient data.
+ *
+ * @param state - The scheduler state
+ * @returns Frame time statistics
+ */
+export function getFrameStats(state: RenderSchedulerState): FrameTimeStats {
+  const internalState = internalStateMap.get(state.id);
+  if (!internalState) {
+    return {
+      min: 0 as Milliseconds,
+      max: 0 as Milliseconds,
+      avg: 0 as Milliseconds,
+      p50: 0 as Milliseconds,
+      p95: 0 as Milliseconds,
+      p99: 0 as Milliseconds,
+    };
+  }
+
+  const count = internalState.frameTimestampCount;
+  if (count < 2) {
+    return {
+      min: 0 as Milliseconds,
+      max: 0 as Milliseconds,
+      avg: 0 as Milliseconds,
+      p50: 0 as Milliseconds,
+      p95: 0 as Milliseconds,
+      p99: 0 as Milliseconds,
+    };
+  }
+
+  // Extract deltas from circular buffer
+  const timestamps = internalState.frameTimestamps;
+  const bufferSize = FRAME_BUFFER_SIZE;
+  const startIndex =
+    (internalState.frameTimestampIndex - count + bufferSize) % bufferSize;
+
+  const deltas = new Array<number>(count - 1);
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let sum = 0;
+
+  for (let i = 1; i < count; i++) {
+    const prevIndex = (startIndex + i - 1) % bufferSize;
+    const currIndex = (startIndex + i) % bufferSize;
+    const delta = timestamps[currIndex] - timestamps[prevIndex];
+    deltas[i - 1] = delta;
+
+    if (delta < min) min = delta;
+    if (delta > max) max = delta;
+    sum += delta;
+  }
+
+  const avg = sum / deltas.length;
+
+  // Sort for percentile calculations
+  deltas.sort((a, b) => a - b);
+
+  const p50Index = Math.floor(deltas.length * 0.5);
+  const p95Index = Math.floor(deltas.length * 0.95);
+  const p99Index = Math.floor(deltas.length * 0.99);
+
+  return {
+    min: min as Milliseconds,
+    max: max as Milliseconds,
+    avg: avg as Milliseconds,
+    p50: deltas[p50Index] as Milliseconds,
+    p95: deltas[p95Index] as Milliseconds,
+    p99: deltas[p99Index] as Milliseconds,
+  };
+}
+
+/**
+ * Gets frame drop statistics for the scheduler.
+ *
+ * @param state - The scheduler state
+ * @returns Frame drop statistics
+ */
+export function getFrameDropStats(state: RenderSchedulerState): FrameDropStats {
+  const internalState = internalStateMap.get(state.id);
+  if (!internalState) {
+    return {
+      totalDrops: 0,
+      consecutiveDrops: 0,
+      lastDropTimestamp: 0 as Milliseconds,
+    };
+  }
+
+  return {
+    totalDrops: internalState.totalDroppedFrames,
+    consecutiveDrops: internalState.consecutiveDroppedFrames,
+    lastDropTimestamp: internalState.lastDropTimestamp as Milliseconds,
+  };
+}
+
+/**
+ * Gets total frames rendered and elapsed time.
+ *
+ * @param state - The scheduler state
+ * @returns Object with totalFrames and elapsedTime
+ */
+export function getTotalFrames(state: RenderSchedulerState): {
+  totalFrames: number;
+  elapsedTime: Milliseconds;
+} {
+  const internalState = internalStateMap.get(state.id);
+  if (!internalState) {
+    return { totalFrames: 0, elapsedTime: 0 as Milliseconds };
+  }
+
+  const elapsedTime = performance.now() - internalState.startTime;
+  return {
+    totalFrames: internalState.totalFrames,
+    elapsedTime: elapsedTime as Milliseconds,
+  };
+}
 
 /**
  * Destroys the render scheduler and cleans up resources.
@@ -310,7 +487,9 @@ export function requestRender(state: RenderSchedulerState): void {
  * @param state - The scheduler state to destroy
  * @returns A new RenderSchedulerState with reset values
  */
-export function destroyRenderScheduler(state: RenderSchedulerState): RenderSchedulerState {
+export function destroyRenderScheduler(
+  state: RenderSchedulerState,
+): RenderSchedulerState {
   const internalState = internalStateMap.get(state.id);
 
   if (internalState) {
@@ -346,7 +525,9 @@ export function destroyRenderScheduler(state: RenderSchedulerState): RenderSched
  * });
  * ```
  */
-export function createRenderSchedulerAsync(callback: RenderCallback): RenderSchedulerState {
+export function createRenderSchedulerAsync(
+  callback: RenderCallback,
+): RenderSchedulerState {
   const state = createRenderScheduler();
   return startRenderScheduler(state, callback);
 }

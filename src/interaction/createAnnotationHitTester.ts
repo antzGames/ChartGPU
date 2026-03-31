@@ -5,13 +5,13 @@
  * Uses canvas-space coordinates and configurable hit tolerances.
  */
 
-import type { AnnotationConfig, DataPoint } from '../config/types.js';
-import type { ChartGPUInstance } from '../ChartGPU.js';
+import type { AnnotationConfig, DataPoint } from "../config/types.js";
+import type { ChartGPUInstance } from "../ChartGPU.js";
 
 export interface AnnotationHitTestResult {
   readonly annotationIndex: number;
   readonly annotation: AnnotationConfig;
-  readonly hitType: 'line' | 'text' | 'point' | 'label';
+  readonly hitType: "line" | "text" | "point" | "label";
   readonly distanceCssPx: number;
 }
 
@@ -43,7 +43,7 @@ interface CachedAnnotationBounds {
 export function createAnnotationHitTester(
   chart: ChartGPUInstance,
   canvas: HTMLCanvasElement,
-  options: AnnotationHitTesterOptions = {}
+  options: AnnotationHitTesterOptions = {},
 ): AnnotationHitTester {
   const lineTolerance = options.lineTolerance ?? 20;
   const textTolerance = options.textTolerance ?? 8;
@@ -52,18 +52,23 @@ export function createAnnotationHitTester(
   // spatialGridThreshold reserved for future optimization when >20 annotations
 
   // Cache for annotation bounds in canvas-space
-  const boundsCache = new Map<number, CachedAnnotationBounds>();
+  let boundsCache = new Map<number, CachedAnnotationBounds>();
   let textBoundsCache = new Map<number, DOMRect>();
   let cacheValid = false;
 
   // Type guards for data points
   const isTupleDataPoint = (p: any): p is [number, number] => Array.isArray(p);
-  const isTupleOHLCDataPoint = (p: any): p is [number, number, number, number, number] => Array.isArray(p);
+  const isTupleOHLCDataPoint = (
+    p: any,
+  ): p is [number, number, number, number, number] => Array.isArray(p);
   const getPointX = (p: any): number => (isTupleDataPoint(p) ? p[0] : p.x);
   const getPointY = (p: any): number => (isTupleDataPoint(p) ? p[1] : p.y);
-  const getOHLCTimestamp = (p: any): number => (isTupleOHLCDataPoint(p) ? p[0] : p.timestamp);
-  const getOHLCHigh = (p: any): number => (isTupleOHLCDataPoint(p) ? p[2] : p.high);
-  const getOHLCLow = (p: any): number => (isTupleOHLCDataPoint(p) ? p[3] : p.low);
+  const getOHLCTimestamp = (p: any): number =>
+    isTupleOHLCDataPoint(p) ? p[0] : p.timestamp;
+  const getOHLCHigh = (p: any): number =>
+    isTupleOHLCDataPoint(p) ? p[2] : p.high;
+  const getOHLCLow = (p: any): number =>
+    isTupleOHLCDataPoint(p) ? p[3] : p.low;
 
   /**
    * Compute the actual X domain from series data (with zoom applied)
@@ -80,9 +85,9 @@ export function createAnnotationHitTester(
       let dataXMax = Number.NEGATIVE_INFINITY;
 
       for (const s of series) {
-        if (s.type === 'pie') continue;
+        if (s.type === "pie") continue;
 
-        if (s.type === 'candlestick') {
+        if (s.type === "candlestick") {
           const data = s.data;
           for (const p of data) {
             const timestamp = getOHLCTimestamp(p);
@@ -131,9 +136,9 @@ export function createAnnotationHitTester(
       let dataYMax = Number.NEGATIVE_INFINITY;
 
       for (const s of series) {
-        if (s.type === 'pie') continue;
+        if (s.type === "pie") continue;
 
-        if (s.type === 'candlestick') {
+        if (s.type === "candlestick") {
           const data = s.data;
           for (const p of data) {
             const high = getOHLCHigh(p);
@@ -162,11 +167,19 @@ export function createAnnotationHitTester(
   /**
    * Convert data-space coordinates to canvas-space CSS pixels
    */
-  function dataToCanvas(x: number | undefined, y: number | undefined): { x: number; y: number } {
+  function dataToCanvas(
+    x: number | undefined,
+    y: number | undefined,
+  ): { x: number; y: number } {
     const chartOptions = chart.options;
     const rect = canvas.getBoundingClientRect();
 
-    const grid = chartOptions.grid ?? { left: 60, right: 20, top: 40, bottom: 40 };
+    const grid = chartOptions.grid ?? {
+      left: 60,
+      right: 20,
+      top: 40,
+      bottom: 40,
+    };
     const canvasWidth = rect.width;
     const canvasHeight = rect.height;
 
@@ -186,7 +199,7 @@ export function createAnnotationHitTester(
 
     // Convert X coordinate
     if (x !== undefined && xAxis) {
-      if (xAxis.type === 'category' && Array.isArray((xAxis as any).data)) {
+      if (xAxis.type === "category" && Array.isArray((xAxis as any).data)) {
         // Category scale: find index and map to plot space
         const data = (xAxis as any).data as string[];
         const index = data.indexOf(String(x));
@@ -224,7 +237,12 @@ export function createAnnotationHitTester(
     const chartOptions = chart.options;
     const rect = canvas.getBoundingClientRect();
 
-    const grid = chartOptions.grid ?? { left: 60, right: 20, top: 40, bottom: 40 };
+    const grid = chartOptions.grid ?? {
+      left: 60,
+      right: 20,
+      top: 40,
+      bottom: 40,
+    };
     const canvasWidth = rect.width;
     const canvasHeight = rect.height;
 
@@ -250,23 +268,27 @@ export function createAnnotationHitTester(
     annotations.forEach((annotation, index) => {
       const bounds: CachedAnnotationBounds = {};
 
-      if (annotation.type === 'lineX' && annotation.x !== undefined) {
+      if (annotation.type === "lineX" && annotation.x !== undefined) {
         const { x } = dataToCanvas(annotation.x, undefined);
         bounds.canvasX = x;
-      } else if (annotation.type === 'lineY' && annotation.y !== undefined) {
+      } else if (annotation.type === "lineY" && annotation.y !== undefined) {
         const { y } = dataToCanvas(undefined, annotation.y);
         bounds.canvasY = y;
-      } else if (annotation.type === 'point' && annotation.x !== undefined && annotation.y !== undefined) {
+      } else if (
+        annotation.type === "point" &&
+        annotation.x !== undefined &&
+        annotation.y !== undefined
+      ) {
         const { x, y } = dataToCanvas(annotation.x, annotation.y);
         bounds.canvasX = x;
         bounds.canvasY = y;
-      } else if (annotation.type === 'text') {
+      } else if (annotation.type === "text") {
         const pos = annotation.position;
-        if (pos.space === 'plot') {
+        if (pos.space === "plot") {
           const { x, y } = plotToCanvas(pos.x, pos.y);
           bounds.canvasX = x;
           bounds.canvasY = y;
-        } else if (pos.space === 'data') {
+        } else if (pos.space === "data") {
           const { x, y } = dataToCanvas(pos.x, pos.y);
           bounds.canvasX = x;
           bounds.canvasY = y;
@@ -282,7 +304,12 @@ export function createAnnotationHitTester(
   /**
    * Calculate distance from pointer to a line (vertical or horizontal)
    */
-  function distanceToLine(pointerX: number, pointerY: number, lineX?: number, lineY?: number): number {
+  function distanceToLine(
+    pointerX: number,
+    pointerY: number,
+    lineX?: number,
+    lineY?: number,
+  ): number {
     if (lineX !== undefined) {
       // Vertical line: distance is horizontal difference
       return Math.abs(pointerX - lineX);
@@ -296,7 +323,12 @@ export function createAnnotationHitTester(
   /**
    * Calculate distance from pointer to a point
    */
-  function distanceToPoint(pointerX: number, pointerY: number, pointX: number, pointY: number): number {
+  function distanceToPoint(
+    pointerX: number,
+    pointerY: number,
+    pointX: number,
+    pointY: number,
+  ): number {
     const dx = pointerX - pointX;
     const dy = pointerY - pointY;
     return Math.sqrt(dx * dx + dy * dy);
@@ -305,7 +337,12 @@ export function createAnnotationHitTester(
   /**
    * Check if pointer is inside a rectangle (with tolerance padding)
    */
-  function isInsideRect(pointerX: number, pointerY: number, rect: DOMRect, tolerance: number): boolean {
+  function isInsideRect(
+    pointerX: number,
+    pointerY: number,
+    rect: DOMRect,
+    tolerance: number,
+  ): boolean {
     return (
       pointerX >= rect.left - tolerance &&
       pointerX <= rect.right + tolerance &&
@@ -317,7 +354,10 @@ export function createAnnotationHitTester(
   /**
    * Perform hit test at the given canvas position
    */
-  function hitTest(canvasX: number, canvasY: number): AnnotationHitTestResult | null {
+  function hitTest(
+    canvasX: number,
+    canvasY: number,
+  ): AnnotationHitTestResult | null {
     const annotations = chart.options.annotations ?? [];
 
     if (annotations.length === 0) {
@@ -344,25 +384,35 @@ export function createAnnotationHitTester(
         continue;
       }
 
-      if (annotation.type === 'lineX' && bounds.canvasX !== undefined) {
-        const distance = distanceToLine(canvasX, canvasY, bounds.canvasX, undefined);
+      if (annotation.type === "lineX" && bounds.canvasX !== undefined) {
+        const distance = distanceToLine(
+          canvasX,
+          canvasY,
+          bounds.canvasX,
+          undefined,
+        );
         if (distance <= lineTolerance && distance < closestDistance) {
           closestDistance = distance;
           closestHit = {
             annotationIndex: i,
             annotation,
-            hitType: 'line',
+            hitType: "line",
             distanceCssPx: distance,
           };
         }
-      } else if (annotation.type === 'lineY' && bounds.canvasY !== undefined) {
-        const distance = distanceToLine(canvasX, canvasY, undefined, bounds.canvasY);
+      } else if (annotation.type === "lineY" && bounds.canvasY !== undefined) {
+        const distance = distanceToLine(
+          canvasX,
+          canvasY,
+          undefined,
+          bounds.canvasY,
+        );
         if (distance <= lineTolerance && distance < closestDistance) {
           closestDistance = distance;
           closestHit = {
             annotationIndex: i,
             annotation,
-            hitType: 'line',
+            hitType: "line",
             distanceCssPx: distance,
           };
         }
@@ -374,7 +424,7 @@ export function createAnnotationHitTester(
       const annotation = annotations[i];
       const textRect = textBoundsCache.get(i);
 
-      if (annotation.type === 'text' && textRect) {
+      if (annotation.type === "text" && textRect) {
         if (isInsideRect(canvasX, canvasY, textRect, textTolerance)) {
           const centerX = textRect.left + textRect.width / 2;
           const centerY = textRect.top + textRect.height / 2;
@@ -385,7 +435,7 @@ export function createAnnotationHitTester(
             closestHit = {
               annotationIndex: i,
               annotation,
-              hitType: 'text',
+              hitType: "text",
               distanceCssPx: distance,
             };
           }
@@ -398,14 +448,24 @@ export function createAnnotationHitTester(
       const annotation = annotations[i];
       const bounds = boundsCache.get(i);
 
-      if (bounds && annotation.type === 'point' && bounds.canvasX !== undefined && bounds.canvasY !== undefined) {
-        const distance = distanceToPoint(canvasX, canvasY, bounds.canvasX, bounds.canvasY);
+      if (
+        bounds &&
+        annotation.type === "point" &&
+        bounds.canvasX !== undefined &&
+        bounds.canvasY !== undefined
+      ) {
+        const distance = distanceToPoint(
+          canvasX,
+          canvasY,
+          bounds.canvasX,
+          bounds.canvasY,
+        );
         if (distance <= pointTolerance && distance < closestDistance) {
           closestDistance = distance;
           closestHit = {
             annotationIndex: i,
             annotation,
-            hitType: 'point',
+            hitType: "point",
             distanceCssPx: distance,
           };
         }

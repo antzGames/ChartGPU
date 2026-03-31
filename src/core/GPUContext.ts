@@ -18,8 +18,10 @@ const MIN_REQUIRED_MAX_STORAGE_BUFFER_BINDING_SIZE_BYTES = 32 * 1024 * 1024; // 
 
 // Internal ownership tracking.
 // AC-2 requires ownership tracking, but this must remain internal (not a public API surface).
-const ownsDeviceKey: unique symbol = Symbol('GPUContext.ownsDevice');
-type GPUContextStateInternal = GPUContextState & { readonly [ownsDeviceKey]: boolean };
+const ownsDeviceKey: unique symbol = Symbol("GPUContext.ownsDevice");
+type GPUContextStateInternal = GPUContextState & {
+  readonly [ownsDeviceKey]: boolean;
+};
 const getOwnsDevice = (context: GPUContextState): boolean =>
   (context as GPUContextStateInternal)[ownsDeviceKey] ?? true;
 
@@ -28,9 +30,9 @@ export interface GPUContextOptions {
   /** DPR for high-DPI displays. Auto-detects from `window.devicePixelRatio`, defaults to 1.0. */
   readonly devicePixelRatio?: number;
   /** Canvas alpha mode. Default: 'opaque' (faster, no transparency). */
-  readonly alphaMode?: 'opaque' | 'premultiplied';
+  readonly alphaMode?: "opaque" | "premultiplied";
   /** GPU power preference for adapter selection. */
-  readonly powerPreference?: 'low-power' | 'high-performance';
+  readonly powerPreference?: "low-power" | "high-performance";
   /**
    * Optional WebGPU adapter. When both device and adapter are provided, initialization skips
    * requestAdapter/requestDevice and uses these objects (shared device mode). The caller owns
@@ -57,17 +59,25 @@ export interface GPUContextState {
   readonly canvasContext: GPUCanvasContext | null;
   readonly preferredFormat: GPUTextureFormat | null;
   readonly devicePixelRatio: number;
-  readonly alphaMode: 'opaque' | 'premultiplied';
-  readonly powerPreference: 'low-power' | 'high-performance';
+  readonly alphaMode: "opaque" | "premultiplied";
+  readonly powerPreference: "low-power" | "high-performance";
 }
 
 /** Reliable type guard for DOM canvases (safe when DOM globals are absent). */
-export function isHTMLCanvasElement(canvas: HTMLCanvasElement): canvas is HTMLCanvasElement {
-  return typeof HTMLCanvasElement !== 'undefined' && canvas instanceof HTMLCanvasElement;
+export function isHTMLCanvasElement(
+  canvas: HTMLCanvasElement,
+): canvas is HTMLCanvasElement {
+  return (
+    typeof HTMLCanvasElement !== "undefined" &&
+    canvas instanceof HTMLCanvasElement
+  );
 }
 
 /** Gets display dimensions - clientWidth/Height for HTMLCanvasElement */
-function getCanvasDimensions(canvas: HTMLCanvasElement): { width: number; height: number } {
+function getCanvasDimensions(canvas: HTMLCanvasElement): {
+  width: number;
+  height: number;
+} {
   // Prefer clientWidth/clientHeight (CSS pixels) for HTMLCanvasElement as they reflect actual display size
   // Fall back to canvas.width/height (device pixels) if client dimensions are 0 or invalid
   const width = canvas.clientWidth || canvas.width || 0;
@@ -79,7 +89,7 @@ function getCanvasDimensions(canvas: HTMLCanvasElement): { width: number; height
     throw new Error(
       `GPUContext: Invalid canvas dimensions detected: width=${canvas.clientWidth || canvas.width}, ` +
         `height=${canvas.clientHeight || canvas.height}. ` +
-        `Canvas must have finite dimensions. Ensure canvas is properly sized before initialization.`
+        `Canvas must have finite dimensions. Ensure canvas is properly sized before initialization.`,
     );
   }
 
@@ -93,13 +103,18 @@ function getCanvasDimensions(canvas: HTMLCanvasElement): { width: number; height
  * @param options - Optional configuration for device pixel ratio, alpha mode, and power preference
  * @returns A new GPUContextState instance
  */
-export function createGPUContext(canvas?: HTMLCanvasElement, options?: GPUContextOptions): GPUContextState {
+export function createGPUContext(
+  canvas?: HTMLCanvasElement,
+  options?: GPUContextOptions,
+): GPUContextState {
   // Auto-detect DPR when `window` is available; otherwise default to 1.0.
-  const dprRaw = options?.devicePixelRatio ?? (typeof window !== 'undefined' ? window.devicePixelRatio : 1.0);
+  const dprRaw =
+    options?.devicePixelRatio ??
+    (typeof window !== "undefined" ? window.devicePixelRatio : 1.0);
   // Be resilient: callers may pass 0/NaN/Infinity. Fall back to 1 instead of throwing.
   const dpr = Number.isFinite(dprRaw) && dprRaw > 0 ? dprRaw : 1.0;
-  const alphaMode = options?.alphaMode ?? 'opaque';
-  const powerPreference = options?.powerPreference ?? 'high-performance';
+  const alphaMode = options?.alphaMode ?? "opaque";
+  const powerPreference = options?.powerPreference ?? "high-performance";
 
   // Only use injected device/adapter when BOTH are provided (shared device mode)
   const hasInjected = !!(options?.device && options?.adapter);
@@ -132,26 +147,31 @@ export function createGPUContext(canvas?: HTMLCanvasElement, options?: GPUContex
  * @throws {Error} If device request fails
  * @throws {Error} If already initialized
  */
-export async function initializeGPUContext(context: GPUContextState): Promise<GPUContextState> {
+export async function initializeGPUContext(
+  context: GPUContextState,
+): Promise<GPUContextState> {
   if (context.initialized) {
-    throw new Error('GPUContext: already initialized. Call destroyGPUContext() before reinitializing.');
+    throw new Error(
+      "GPUContext: already initialized. Call destroyGPUContext() before reinitializing.",
+    );
   }
 
   // Be resilient: callers may construct GPUContextState manually.
   const sanitizedDevicePixelRatio =
-    Number.isFinite(context.devicePixelRatio) && context.devicePixelRatio > 0 ? context.devicePixelRatio : 1.0;
+    Number.isFinite(context.devicePixelRatio) && context.devicePixelRatio > 0
+      ? context.devicePixelRatio
+      : 1.0;
 
   // Check for WebGPU support
   if (!navigator.gpu) {
     throw new Error(
-      'WebGPU is not available in this browser. ' +
-        'Please use a browser that supports WebGPU (Chrome 113+, Edge 113+, or Safari 18+). ' +
-        'Ensure WebGPU is enabled in browser flags if needed.'
+      "WebGPU is not available in this browser. " +
+        "Please use a browser that supports WebGPU (Chrome 113+, Edge 113+, or Safari 18+). " +
+        "Ensure WebGPU is enabled in browser flags if needed.",
     );
   }
 
   let device: GPUDevice | null = null;
-  // eslint-disable-next-line no-useless-assignment
   let adapter: GPUAdapter | null = null;
   let ownsDevice = getOwnsDevice(context);
 
@@ -167,21 +187,21 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
       // AC-8: Best-effort validation that getPreferredCanvasFormat is usable for canvas config.
       // WebGPU does not expose format compatibility checks on the adapter/device; validate API
       // availability and that the preferred format is one of the mandated canvas formats.
-      if (typeof navigator.gpu?.getPreferredCanvasFormat !== 'function') {
+      if (typeof navigator.gpu?.getPreferredCanvasFormat !== "function") {
         throw new Error(
-          'GPUContext: Shared device requires navigator.gpu.getPreferredCanvasFormat() for canvas ' +
-            'format selection, but it is not available in this environment. Use a browser with full WebGPU support.'
+          "GPUContext: Shared device requires navigator.gpu.getPreferredCanvasFormat() for canvas " +
+            "format selection, but it is not available in this environment. Use a browser with full WebGPU support.",
         );
       }
 
       // Validate preferred canvas format is in the mandated set for WebGPU canvases.
       // (This is as close as we can get to "adapter supports format" with current WebGPU APIs.)
       const preferred = navigator.gpu.getPreferredCanvasFormat();
-      if (preferred !== 'bgra8unorm' && preferred !== 'rgba8unorm') {
+      if (preferred !== "bgra8unorm" && preferred !== "rgba8unorm") {
         throw new Error(
           `GPUContext: Shared device preferred canvas format is not supported by ChartGPU. ` +
             `Received navigator.gpu.getPreferredCanvasFormat()="${preferred}". ` +
-            `Supported formats: "bgra8unorm", "rgba8unorm".`
+            `Supported formats: "bgra8unorm", "rgba8unorm".`,
         );
       }
 
@@ -190,15 +210,18 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
       if (actualMaxBufferSize < MIN_REQUIRED_MAX_BUFFER_SIZE_BYTES) {
         throw new Error(
           `GPUContext: Injected device.limits.maxBufferSize is insufficient. ` +
-            `Required >= ${MIN_REQUIRED_MAX_BUFFER_SIZE_BYTES} bytes, actual=${actualMaxBufferSize} bytes.`
+            `Required >= ${MIN_REQUIRED_MAX_BUFFER_SIZE_BYTES} bytes, actual=${actualMaxBufferSize} bytes.`,
         );
       }
 
       const actualMaxStorageBinding = device.limits.maxStorageBufferBindingSize;
-      if (actualMaxStorageBinding < MIN_REQUIRED_MAX_STORAGE_BUFFER_BINDING_SIZE_BYTES) {
+      if (
+        actualMaxStorageBinding <
+        MIN_REQUIRED_MAX_STORAGE_BUFFER_BINDING_SIZE_BYTES
+      ) {
         throw new Error(
           `GPUContext: Injected device.limits.maxStorageBufferBindingSize is insufficient. ` +
-            `Required >= ${MIN_REQUIRED_MAX_STORAGE_BUFFER_BINDING_SIZE_BYTES} bytes, actual=${actualMaxStorageBinding} bytes.`
+            `Required >= ${MIN_REQUIRED_MAX_STORAGE_BUFFER_BINDING_SIZE_BYTES} bytes, actual=${actualMaxStorageBinding} bytes.`,
         );
       }
     } else {
@@ -209,15 +232,17 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
 
       if (!requestedAdapter) {
         throw new Error(
-          'GPUContext: Failed to request WebGPU adapter. ' +
-            'No compatible adapter found. This may occur if no GPU is available or WebGPU is disabled.'
+          "GPUContext: Failed to request WebGPU adapter. " +
+            "No compatible adapter found. This may occur if no GPU is available or WebGPU is disabled.",
         );
       }
 
       const requestedDevice = await requestedAdapter.requestDevice();
 
       if (!requestedDevice) {
-        throw new Error('GPUContext: Failed to request WebGPU device from adapter.');
+        throw new Error(
+          "GPUContext: Failed to request WebGPU device from adapter.",
+        );
       }
 
       adapter = requestedAdapter;
@@ -227,9 +252,12 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
       // AC-4 (CGPU-SHARED-DEVICE): Add uncapturederror handler only for owned devices.
       // Rationale: Injected devices are caller-managed; avoid adding handlers to avoid conflicts
       // with caller's error handling strategy. Owned devices are fully managed internally.
-      device.addEventListener('uncapturederror', (event: GPUUncapturedErrorEvent) => {
-        console.error('WebGPU uncaptured error:', event.error);
-      });
+      device.addEventListener(
+        "uncapturederror",
+        (event: GPUUncapturedErrorEvent) => {
+          console.error("WebGPU uncaptured error:", event.error);
+        },
+      );
     }
 
     let canvasContext: GPUCanvasContext | null = null;
@@ -237,7 +265,9 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
 
     // Configure canvas if provided
     if (context.canvas) {
-      const webgpuContext = context.canvas.getContext('webgpu') as GPUCanvasContext | null;
+      const webgpuContext = context.canvas.getContext(
+        "webgpu",
+      ) as GPUCanvasContext | null;
 
       if (!webgpuContext) {
         // Clean up device before throwing (only if we own it)
@@ -245,10 +275,15 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
           try {
             device.destroy();
           } catch (error) {
-            console.warn('Error destroying device during canvas setup failure:', error);
+            console.warn(
+              "Error destroying device during canvas setup failure:",
+              error,
+            );
           }
         }
-        throw new Error('GPUContext: Failed to get WebGPU context from canvas.');
+        throw new Error(
+          "GPUContext: Failed to get WebGPU context from canvas.",
+        );
       }
 
       // Use DPR from context state (set at context creation)
@@ -269,7 +304,7 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
         throw new Error(
           `GPUContext: Injected device.limits.maxTextureDimension2D is insufficient. ` +
             `Required >= ${required} (for ${targetWidth}x${targetHeight} at devicePixelRatio=${dpr}), ` +
-            `actual=${maxDim}.`
+            `actual=${maxDim}.`,
         );
       }
       const finalWidth = Math.max(1, Math.min(targetWidth, maxDim));
@@ -279,7 +314,8 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
       context.canvas.height = finalHeight;
 
       // Get preferred format from navigator.gpu, fallback to bgra8unorm
-      preferredFormat = navigator.gpu.getPreferredCanvasFormat?.() || 'bgra8unorm';
+      preferredFormat =
+        navigator.gpu.getPreferredCanvasFormat?.() || "bgra8unorm";
 
       // Configure the canvas context with alpha mode from context state
       webgpuContext.configure({
@@ -309,7 +345,10 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
       try {
         device.destroy();
       } catch (destroyError) {
-        console.warn('Error destroying device during initialization failure:', destroyError);
+        console.warn(
+          "Error destroying device during initialization failure:",
+          destroyError,
+        );
       }
     }
     if (error instanceof Error) {
@@ -334,11 +373,15 @@ export async function initializeGPUContext(context: GPUContextState): Promise<GP
  */
 export function getCanvasTexture(context: GPUContextState): GPUTexture {
   if (!context.canvas) {
-    throw new Error('GPUContext: Canvas is not configured. Provide a canvas element when creating the context.');
+    throw new Error(
+      "GPUContext: Canvas is not configured. Provide a canvas element when creating the context.",
+    );
   }
 
   if (!context.initialized || !context.canvasContext) {
-    throw new Error('GPUContext: not initialized. Call initializeGPUContext() first.');
+    throw new Error(
+      "GPUContext: not initialized. Call initializeGPUContext() first.",
+    );
   }
 
   return context.canvasContext.getCurrentTexture();
@@ -363,18 +406,30 @@ export function getCanvasTexture(context: GPUContextState): GPUTexture {
  * clearScreen(context, 0x1a / 255, 0x1a / 255, 0x2e / 255, 1.0);
  * ```
  */
-export function clearScreen(context: GPUContextState, r: number, g: number, b: number, a: number): void {
+export function clearScreen(
+  context: GPUContextState,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void {
   // Validate color component ranges
   if (r < 0 || r > 1 || g < 0 || g > 1 || b < 0 || b > 1 || a < 0 || a > 1) {
-    throw new Error('GPUContext: Color components must be in the range [0.0, 1.0]');
+    throw new Error(
+      "GPUContext: Color components must be in the range [0.0, 1.0]",
+    );
   }
 
   if (!context.canvas) {
-    throw new Error('GPUContext: Canvas is not configured. Provide a canvas element when creating the context.');
+    throw new Error(
+      "GPUContext: Canvas is not configured. Provide a canvas element when creating the context.",
+    );
   }
 
   if (!context.initialized || !context.device || !context.canvasContext) {
-    throw new Error('GPUContext: not initialized. Call initializeGPUContext() first.');
+    throw new Error(
+      "GPUContext: not initialized. Call initializeGPUContext() first.",
+    );
   }
 
   // Get the current texture from the canvas
@@ -389,8 +444,8 @@ export function clearScreen(context: GPUContextState, r: number, g: number, b: n
       {
         view: texture.createView(),
         clearValue: { r, g, b, a },
-        loadOp: 'clear',
-        storeOp: 'store',
+        loadOp: "clear",
+        storeOp: "store",
       },
     ],
   });
@@ -426,7 +481,7 @@ export function destroyGPUContext(context: GPUContextState): GPUContextState {
     try {
       context.canvasContext.unconfigure();
     } catch (error) {
-      console.warn('Error unconfiguring GPU canvas context:', error);
+      console.warn("Error unconfiguring GPU canvas context:", error);
     }
   }
 
@@ -436,7 +491,7 @@ export function destroyGPUContext(context: GPUContextState): GPUContextState {
     try {
       context.device.destroy();
     } catch (error) {
-      console.warn('Error destroying GPU device:', error);
+      console.warn("Error destroying GPU device:", error);
     }
   }
 
@@ -477,7 +532,7 @@ export function destroyGPUContext(context: GPUContextState): GPUContextState {
  */
 export async function createGPUContextAsync(
   canvas?: HTMLCanvasElement,
-  options?: GPUContextOptions
+  options?: GPUContextOptions,
 ): Promise<GPUContextState> {
   const context = createGPUContext(canvas, options);
   return initializeGPUContext(context);
@@ -544,14 +599,14 @@ export class GPUContext {
   /**
    * Gets the canvas alpha mode.
    */
-  get alphaMode(): 'opaque' | 'premultiplied' {
+  get alphaMode(): "opaque" | "premultiplied" {
     return this._state.alphaMode;
   }
 
   /**
    * Gets the GPU power preference.
    */
-  get powerPreference(): 'low-power' | 'high-performance' {
+  get powerPreference(): "low-power" | "high-performance" {
     return this._state.powerPreference;
   }
 
@@ -598,7 +653,10 @@ export class GPUContext {
    * const texture = context.getCanvasTexture();
    * ```
    */
-  static async create(canvas?: HTMLCanvasElement, options?: GPUContextOptions): Promise<GPUContext> {
+  static async create(
+    canvas?: HTMLCanvasElement,
+    options?: GPUContextOptions,
+  ): Promise<GPUContext> {
     const context = new GPUContext(canvas, options);
     await context.initialize();
     return context;

@@ -1,6 +1,6 @@
-import type { GridArea } from '../renderers/createGridRenderer';
+import type { GridArea } from "../renderers/createGridRenderer";
 
-export type ChartGPUEventName = 'mousemove' | 'click' | 'mouseleave';
+export type ChartGPUEventName = "mousemove" | "click" | "mouseleave";
 
 export type ChartGPUEventPayload = {
   readonly x: number;
@@ -25,7 +25,9 @@ export interface EventManager {
   dispose(): void;
 }
 
-type ListenerRegistry = Readonly<Record<ChartGPUEventName, Set<ChartGPUEventCallback>>>;
+type ListenerRegistry = Readonly<
+  Record<ChartGPUEventName, Set<ChartGPUEventCallback>>
+>;
 
 type TapCandidate = {
   readonly pointerId: number;
@@ -37,7 +39,10 @@ type TapCandidate = {
 const DEFAULT_TAP_MAX_DISTANCE_CSS_PX = 6;
 const DEFAULT_TAP_MAX_TIME_MS = 500;
 
-export function createEventManager(canvas: HTMLCanvasElement, initialGridArea: GridArea): EventManager {
+export function createEventManager(
+  canvas: HTMLCanvasElement,
+  initialGridArea: GridArea,
+): EventManager {
   let disposed = false;
   let gridArea = initialGridArea;
 
@@ -67,7 +72,16 @@ export function createEventManager(canvas: HTMLCanvasElement, initialGridArea: G
 
     const isInGrid = gridX >= 0 && gridX <= plotWidthCss && gridY >= 0 && gridY <= plotHeightCss;
 
-    return { x, y, gridX, gridY, plotWidthCss, plotHeightCss, isInGrid, originalEvent: e };
+    return {
+      x,
+      y,
+      gridX,
+      gridY,
+      plotWidthCss,
+      plotHeightCss,
+      isInGrid,
+      originalEvent: e,
+    };
   };
 
   const emit = (eventName: ChartGPUEventName, e: PointerEvent): void => {
@@ -86,19 +100,19 @@ export function createEventManager(canvas: HTMLCanvasElement, initialGridArea: G
 
   const onPointerMove = (e: PointerEvent): void => {
     if (disposed) return;
-    emit('mousemove', e);
+    emit("mousemove", e);
   };
 
   const onPointerLeave = (e: PointerEvent): void => {
     if (disposed) return;
     clearTapCandidateIfMatches(e);
-    emit('mouseleave', e);
+    emit("mouseleave", e);
   };
 
   const onPointerCancel = (e: PointerEvent): void => {
     if (disposed) return;
     clearTapCandidateIfMatches(e);
-    emit('mouseleave', e);
+    emit("mouseleave", e);
   };
 
   const onLostPointerCapture = (e: PointerEvent): void => {
@@ -108,7 +122,7 @@ export function createEventManager(canvas: HTMLCanvasElement, initialGridArea: G
       return;
     }
     clearTapCandidateIfMatches(e);
-    emit('mouseleave', e);
+    emit("mouseleave", e);
   };
 
   const onPointerDown = (e: PointerEvent): void => {
@@ -116,7 +130,7 @@ export function createEventManager(canvas: HTMLCanvasElement, initialGridArea: G
     if (!e.isPrimary) return;
 
     // For mouse, only allow left button.
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
 
     // If canvas has no size, treat as non-interactive (and avoid tap tracking).
     const rect = canvas.getBoundingClientRect();
@@ -162,42 +176,44 @@ export function createEventManager(canvas: HTMLCanvasElement, initialGridArea: G
     const maxDist = DEFAULT_TAP_MAX_DISTANCE_CSS_PX;
     const isTap = dt <= DEFAULT_TAP_MAX_TIME_MS && distSq <= maxDist * maxDist;
 
-    if (isTap) emit('click', e);
+    if (isTap) emit("click", e);
   };
 
-  canvas.addEventListener('pointermove', onPointerMove, { passive: true });
-  canvas.addEventListener('pointerleave', onPointerLeave, { passive: true });
-  canvas.addEventListener('pointercancel', onPointerCancel, { passive: true });
-  canvas.addEventListener('lostpointercapture', onLostPointerCapture, { passive: true });
-  canvas.addEventListener('pointerdown', onPointerDown, { passive: true });
-  canvas.addEventListener('pointerup', onPointerUp, { passive: true });
+  canvas.addEventListener("pointermove", onPointerMove, { passive: true });
+  canvas.addEventListener("pointerleave", onPointerLeave, { passive: true });
+  canvas.addEventListener("pointercancel", onPointerCancel, { passive: true });
+  canvas.addEventListener("lostpointercapture", onLostPointerCapture, {
+    passive: true,
+  });
+  canvas.addEventListener("pointerdown", onPointerDown, { passive: true });
+  canvas.addEventListener("pointerup", onPointerUp, { passive: true });
 
-  const on: EventManager['on'] = (event, callback) => {
+  const on: EventManager["on"] = (event, callback) => {
     if (disposed) return;
     listeners[event].add(callback);
   };
 
-  const off: EventManager['off'] = (event, callback) => {
+  const off: EventManager["off"] = (event, callback) => {
     listeners[event].delete(callback);
   };
 
-  const updateGridArea: EventManager['updateGridArea'] = (nextGridArea) => {
+  const updateGridArea: EventManager["updateGridArea"] = (nextGridArea) => {
     gridArea = nextGridArea;
   };
 
-  const dispose: EventManager['dispose'] = () => {
+  const dispose: EventManager["dispose"] = () => {
     if (disposed) return;
     disposed = true;
 
     tapCandidate = null;
     suppressNextLostPointerCaptureId = null;
 
-    canvas.removeEventListener('pointermove', onPointerMove);
-    canvas.removeEventListener('pointerleave', onPointerLeave);
-    canvas.removeEventListener('pointercancel', onPointerCancel);
-    canvas.removeEventListener('lostpointercapture', onLostPointerCapture);
-    canvas.removeEventListener('pointerdown', onPointerDown);
-    canvas.removeEventListener('pointerup', onPointerUp);
+    canvas.removeEventListener("pointermove", onPointerMove);
+    canvas.removeEventListener("pointerleave", onPointerLeave);
+    canvas.removeEventListener("pointercancel", onPointerCancel);
+    canvas.removeEventListener("lostpointercapture", onLostPointerCapture);
+    canvas.removeEventListener("pointerdown", onPointerDown);
+    canvas.removeEventListener("pointerup", onPointerUp);
 
     listeners.mousemove.clear();
     listeners.click.clear();

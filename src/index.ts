@@ -2,16 +2,16 @@
  * ChartGPU - A GPU-accelerated charting library built with WebGPU
  */
 
-export const version = '1.0.0';
+export const version = "1.0.0";
 
 // Chart API (Phase 1)
-import { ChartGPU as ChartGPUNamespace } from './ChartGPU';
+import { ChartGPU as ChartGPUNamespace } from "./ChartGPU";
 
 // Export ChartGPU namespace
 export const ChartGPU = ChartGPUNamespace;
 
-export { createChartGPU as createChart } from './ChartGPU';
-export type { ChartGPUInstance } from './ChartGPU';
+export { createChartGPU as createChart } from "./ChartGPU";
+export type { ChartGPUInstance } from "./ChartGPU";
 export type {
   ChartGPUEventName,
   ChartGPUEventPayload,
@@ -26,7 +26,7 @@ export type {
   ChartGPUHitTestMatch,
   ChartGPUHitTestResult,
   ZoomChangeSourceKind,
-} from './ChartGPU';
+} from "./ChartGPU";
 export type {
   AnnotationConfig,
   AnnotationConfigBase,
@@ -78,11 +78,11 @@ export type {
   SeriesType,
   TooltipConfig,
   TooltipParams,
-} from './config/types';
+} from "./config/types";
 
 // Options defaults + resolution
-export { candlestickDefaults, defaultOptions } from './config/defaults';
-export { OptionResolver, resolveOptions } from './config/OptionResolver';
+export { candlestickDefaults, defaultOptions } from "./config/defaults";
+export { OptionResolver, resolveOptions } from "./config/OptionResolver";
 export type {
   ResolvedCandlestickSeriesConfig,
   ResolvedChartGPUOptions,
@@ -96,27 +96,34 @@ export type {
   ResolvedPieDataItem,
   ResolvedPieSeriesConfig,
   ResolvedSeriesConfig,
-} from './config/OptionResolver';
+} from "./config/OptionResolver";
 
 // Themes
-export type { ThemeConfig } from './themes/types';
-export { darkTheme, lightTheme, getTheme } from './themes';
-export type { ThemeName } from './themes';
+export type { ThemeConfig } from "./themes/types";
+export { darkTheme, lightTheme, getTheme } from "./themes";
+export type { ThemeName } from "./themes";
 
 // Scales - Pure utilities
-export { createLinearScale, createCategoryScale } from './utils/scales';
-export type { LinearScale, CategoryScale } from './utils/scales';
+export { createLinearScale, createCategoryScale } from "./utils/scales";
+export type { LinearScale, CategoryScale } from "./utils/scales";
 
 // Chart sync (interaction)
-export { connectCharts } from './interaction/createChartSync';
-export type { ChartSyncOptions } from './interaction/createChartSync';
+export { connectCharts } from "./interaction/createChartSync";
+export type { ChartSyncOptions } from "./interaction/createChartSync";
 
 // Annotation authoring (interaction)
-export { createAnnotationAuthoring } from './interaction/createAnnotationAuthoring';
-export type { AnnotationAuthoringInstance, AnnotationAuthoringOptions } from './interaction/createAnnotationAuthoring';
+export { createAnnotationAuthoring } from "./interaction/createAnnotationAuthoring";
+export type {
+  AnnotationAuthoringInstance,
+  AnnotationAuthoringOptions,
+} from "./interaction/createAnnotationAuthoring";
 
 // Core exports - Functional API (preferred)
-export type { GPUContextState, GPUContextOptions, SupportedCanvas } from './core/GPUContext';
+export type {
+  GPUContextState,
+  GPUContextOptions,
+  SupportedCanvas,
+} from "./core/GPUContext";
 export {
   createGPUContext,
   createGPUContextAsync,
@@ -124,13 +131,16 @@ export {
   getCanvasTexture,
   clearScreen,
   destroyGPUContext,
-} from './core/GPUContext';
+} from "./core/GPUContext";
 
 // Class-based API (for backward compatibility)
-export { GPUContext } from './core/GPUContext';
+export { GPUContext } from "./core/GPUContext";
 
 // Render scheduler - Functional API (preferred)
-export type { RenderSchedulerState, RenderCallback } from './core/RenderScheduler';
+export type {
+  RenderSchedulerState,
+  RenderCallback,
+} from "./core/RenderScheduler";
 export {
   createRenderScheduler,
   createRenderSchedulerAsync,
@@ -138,39 +148,15 @@ export {
   stopRenderScheduler,
   requestRender,
   destroyRenderScheduler,
-} from './core/RenderScheduler';
+} from "./core/RenderScheduler";
 
 // Class-based API (for backward compatibility)
-export { RenderScheduler } from './core/RenderScheduler';
+export { RenderScheduler } from "./core/RenderScheduler";
 
 // Pipeline cache - Functional API
-export type { PipelineCache, PipelineCacheStats } from './core/PipelineCache';
-export { createPipelineCache, getPipelineCacheStats, destroyPipelineCache } from './core/createPipelineCache';
-
-// Profiling infrastructure
-export type {
-  CounterSample,
-  ProfileSpan,
-  ProfilerSnapshot,
-  SpanStats,
-  TraceEvent,
-  TraceExport,
-  TracePhase,
-  Microseconds,
-  ProfilerHandle,
-  ProfilerOptions,
-} from './profiling';
+export type { PipelineCache, PipelineCacheStats } from "./core/PipelineCache";
 export {
-  createProfiler,
-  destroyProfiler,
-  beginSpan,
-  endSpan,
-  recordSpan,
-  measure,
-  measureAsync,
-  recordCounter,
-  getSnapshot,
-  clearProfiler,
-  exportTrace,
-  exportTraceJSON,
-} from './profiling';
+  createPipelineCache,
+  getPipelineCacheStats,
+  destroyPipelineCache,
+} from "./core/createPipelineCache";

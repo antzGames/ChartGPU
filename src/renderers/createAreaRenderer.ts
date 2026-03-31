@@ -1,11 +1,20 @@
-import areaWgsl from '../shaders/area.wgsl?raw';
-import type { ResolvedAreaSeriesConfig } from '../config/OptionResolver';
-import type { CartesianSeriesData } from '../config/types';
-import type { LinearScale } from '../utils/scales';
-import { parseCssColorToRgba01 } from '../utils/colors';
-import { createRenderPipeline, createUniformBuffer, writeUniformBuffer } from './rendererUtils';
-import { getPointCount, getX, getY, computeRawBoundsFromCartesianData } from '../data/cartesianData';
-import type { PipelineCache } from '../core/PipelineCache';
+import areaWgsl from "../shaders/area.wgsl?raw";
+import type { ResolvedAreaSeriesConfig } from "../config/OptionResolver";
+import type { CartesianSeriesData } from "../config/types";
+import type { LinearScale } from "../utils/scales";
+import { parseCssColorToRgba01 } from "../utils/colors";
+import {
+  createRenderPipeline,
+  createUniformBuffer,
+  writeUniformBuffer,
+} from "./rendererUtils";
+import {
+  getPointCount,
+  getX,
+  getY,
+  computeRawBoundsFromCartesianData,
+} from "../data/cartesianData";
+import type { PipelineCache } from "../core/PipelineCache";
 
 export interface AreaRenderer {
   prepare(
@@ -13,7 +22,7 @@ export interface AreaRenderer {
     data: CartesianSeriesData,
     xScale: LinearScale,
     yScale: LinearScale,
-    baseline?: number
+    baseline?: number,
   ): void;
   render(passEncoder: GPURenderPassEncoder): void;
   dispose(): void;
@@ -42,21 +51,28 @@ export interface AreaRendererOptions {
 
 type Rgba = readonly [r: number, g: number, b: number, a: number];
 
-const DEFAULT_TARGET_FORMAT: GPUTextureFormat = 'bgra8unorm';
+const DEFAULT_TARGET_FORMAT: GPUTextureFormat = "bgra8unorm";
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
-const parseSeriesColorToRgba01 = (color: string): Rgba => parseCssColorToRgba01(color) ?? ([0, 0, 0, 1] as const);
+const parseSeriesColorToRgba01 = (color: string): Rgba =>
+  parseCssColorToRgba01(color) ?? ([0, 0, 0, 1] as const);
 
 const computeClipAffineFromScale = (
   scale: LinearScale,
   v0: number,
-  v1: number
+  v1: number,
 ): { readonly a: number; readonly b: number } => {
   const p0 = scale.scale(v0);
   const p1 = scale.scale(v1);
 
   // If the domain sample is degenerate or non-finite, fall back to constant output.
-  if (!Number.isFinite(v0) || !Number.isFinite(v1) || v0 === v1 || !Number.isFinite(p0) || !Number.isFinite(p1)) {
+  if (
+    !Number.isFinite(v0) ||
+    !Number.isFinite(v1) ||
+    v0 === v1 ||
+    !Number.isFinite(p0) ||
+    !Number.isFinite(p1)
+  ) {
     return { a: 0, b: Number.isFinite(p0) ? p0 : 0 };
   }
 
@@ -65,7 +81,13 @@ const computeClipAffineFromScale = (
   return { a: Number.isFinite(a) ? a : 0, b: Number.isFinite(b) ? b : 0 };
 };
 
-const writeTransformMat4F32 = (out: Float32Array, ax: number, bx: number, ay: number, by: number): void => {
+const writeTransformMat4F32 = (
+  out: Float32Array,
+  ax: number,
+  bx: number,
+  ay: number,
+  by: number,
+): void => {
   // Column-major mat4x4 for: clip = M * vec4(x, y, 0, 1)
   out[0] = ax;
   out[1] = 0;
@@ -115,23 +137,40 @@ const createAreaVertices = (data: CartesianSeriesData): Float32Array => {
   return out;
 };
 
-export function createAreaRenderer(device: GPUDevice, options?: AreaRendererOptions): AreaRenderer {
+export function createAreaRenderer(
+  device: GPUDevice,
+  options?: AreaRendererOptions,
+): AreaRenderer {
   let disposed = false;
   const targetFormat = options?.targetFormat ?? DEFAULT_TARGET_FORMAT;
   // Be resilient: coerce invalid values to 1 (no MSAA).
   const sampleCountRaw = options?.sampleCount ?? 1;
-  const sampleCount = Number.isFinite(sampleCountRaw) ? Math.max(1, Math.floor(sampleCountRaw)) : 1;
+  const sampleCount = Number.isFinite(sampleCountRaw)
+    ? Math.max(1, Math.floor(sampleCountRaw))
+    : 1;
   const pipelineCache = options?.pipelineCache;
 
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
+      },
     ],
   });
 
-  const vsUniformBuffer = createUniformBuffer(device, 96, { label: 'areaRenderer/vsUniforms' });
-  const fsUniformBuffer = createUniformBuffer(device, 16, { label: 'areaRenderer/fsUniforms' });
+  const vsUniformBuffer = createUniformBuffer(device, 96, {
+    label: "areaRenderer/vsUniforms",
+  });
+  const fsUniformBuffer = createUniformBuffer(device, 16, {
+    label: "areaRenderer/fsUniforms",
+  });
 
   // Reused CPU-side staging for uniform writes (avoid per-frame allocations).
   const vsUniformScratchBuffer = new ArrayBuffer(96);
@@ -149,43 +188,57 @@ export function createAreaRenderer(device: GPUDevice, options?: AreaRendererOpti
   const pipeline = createRenderPipeline(
     device,
     {
-      label: 'areaRenderer/pipeline',
+      label: "areaRenderer/pipeline",
       bindGroupLayouts: [bindGroupLayout],
       vertex: {
         code: areaWgsl,
-        label: 'area.wgsl',
+        label: "area.wgsl",
         buffers: [
           {
             arrayStride: 8,
-            stepMode: 'vertex',
-            attributes: [{ shaderLocation: 0, format: 'float32x2', offset: 0 }],
+            stepMode: "vertex",
+            attributes: [{ shaderLocation: 0, format: "float32x2", offset: 0 }],
           },
         ],
       },
       fragment: {
         code: areaWgsl,
-        label: 'area.wgsl',
+        label: "area.wgsl",
         formats: targetFormat,
         // Enable standard alpha blending so `areaStyle.opacity` behaves correctly.
         blend: {
-          color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-          alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+          color: {
+            operation: "add",
+            srcFactor: "src-alpha",
+            dstFactor: "one-minus-src-alpha",
+          },
+          alpha: {
+            operation: "add",
+            srcFactor: "one",
+            dstFactor: "one-minus-src-alpha",
+          },
         },
       },
-      primitive: { topology: 'triangle-strip', cullMode: 'none' },
+      primitive: { topology: "triangle-strip", cullMode: "none" },
       multisample: { count: sampleCount },
     },
-    pipelineCache
+    pipelineCache,
   );
 
   let vertexBuffer: GPUBuffer | null = null;
   let vertexCount = 0;
 
   const assertNotDisposed = (): void => {
-    if (disposed) throw new Error('AreaRenderer is disposed.');
+    if (disposed) throw new Error("AreaRenderer is disposed.");
   };
 
-  const writeVsUniforms = (ax: number, bx: number, ay: number, by: number, baseline: number): void => {
+  const writeVsUniforms = (
+    ax: number,
+    bx: number,
+    ay: number,
+    by: number,
+    baseline: number,
+  ): void => {
     // VSUniforms:
     // - mat4x4<f32> (64 bytes)
     // - baseline: f32 (4 bytes)
@@ -209,7 +262,13 @@ export function createAreaRenderer(device: GPUDevice, options?: AreaRendererOpti
     writeUniformBuffer(device, vsUniformBuffer, vsUniformScratchBuffer);
   };
 
-  const prepare: AreaRenderer['prepare'] = (seriesConfig, data, xScale, yScale, baseline) => {
+  const prepare: AreaRenderer["prepare"] = (
+    seriesConfig,
+    data,
+    xScale,
+    yScale,
+    baseline,
+  ) => {
     assertNotDisposed();
 
     const vertices = createAreaVertices(data);
@@ -225,19 +284,30 @@ export function createAreaRenderer(device: GPUDevice, options?: AreaRendererOpti
         }
       }
       vertexBuffer = device.createBuffer({
-        label: 'areaRenderer/vertexBuffer',
+        label: "areaRenderer/vertexBuffer",
         size: bufferSize,
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
       });
     }
 
     if (vertices.byteLength > 0) {
-      device.queue.writeBuffer(vertexBuffer, 0, vertices.buffer, 0, vertices.byteLength);
+      device.queue.writeBuffer(
+        vertexBuffer,
+        0,
+        vertices.buffer,
+        0,
+        vertices.byteLength,
+      );
     }
     vertexCount = vertices.length / 2;
 
     const bounds = computeRawBoundsFromCartesianData(data);
-    const { xMin, xMax, yMin, yMax } = bounds ?? { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
+    const { xMin, xMax, yMin, yMax } = bounds ?? {
+      xMin: 0,
+      xMax: 1,
+      yMin: 0,
+      yMax: 1,
+    };
     const { a: ax, b: bx } = computeClipAffineFromScale(xScale, xMin, xMax);
     const { a: ay, b: by } = computeClipAffineFromScale(yScale, yMin, yMax);
 
@@ -259,7 +329,7 @@ export function createAreaRenderer(device: GPUDevice, options?: AreaRendererOpti
     writeUniformBuffer(device, fsUniformBuffer, fsUniformScratchF32);
   };
 
-  const render: AreaRenderer['render'] = (passEncoder) => {
+  const render: AreaRenderer["render"] = (passEncoder) => {
     assertNotDisposed();
     if (!vertexBuffer || vertexCount < 4) return;
 
@@ -269,7 +339,7 @@ export function createAreaRenderer(device: GPUDevice, options?: AreaRendererOpti
     passEncoder.draw(vertexCount);
   };
 
-  const dispose: AreaRenderer['dispose'] = () => {
+  const dispose: AreaRenderer["dispose"] = () => {
     if (disposed) return;
     disposed = true;
 

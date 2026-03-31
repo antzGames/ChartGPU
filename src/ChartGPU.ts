@@ -1,12 +1,15 @@
-import { GPUContext } from './core/GPUContext';
-import { createRenderCoordinator } from './core/createRenderCoordinator';
-import type { RenderCoordinator, RenderCoordinatorCallbacks } from './core/createRenderCoordinator';
-import { resolveOptionsForChart } from './config/OptionResolver';
+import { GPUContext } from "./core/GPUContext";
+import { createRenderCoordinator } from "./core/createRenderCoordinator";
+import type {
+  RenderCoordinator,
+  RenderCoordinatorCallbacks,
+} from "./core/createRenderCoordinator";
+import { resolveOptionsForChart } from "./config/OptionResolver";
 import type {
   ResolvedCandlestickSeriesConfig,
   ResolvedChartGPUOptions,
   ResolvedPieSeriesConfig,
-} from './config/OptionResolver';
+} from "./config/OptionResolver";
 import type {
   CartesianSeriesData,
   ChartGPUOptions,
@@ -17,20 +20,24 @@ import type {
   PieCenter,
   PieRadius,
   RenderMode,
-} from './config/types';
-import { createDataZoomSlider } from './components/createDataZoomSlider';
-import type { DataZoomSlider } from './components/createDataZoomSlider';
-import { createZoomResetButton } from './components/createZoomResetButton';
-import type { ZoomResetButton } from './components/createZoomResetButton';
-import type { ZoomRange, ZoomState } from './interaction/createZoomState';
-import { computeCandlestickBodyWidthRange, findCandlestick } from './interaction/findCandlestick';
-import { findNearestPoint } from './interaction/findNearestPoint';
-import type { NearestPointMatch } from './interaction/findNearestPoint';
-import { findPieSlice } from './interaction/findPieSlice';
-import { createLinearScale } from './utils/scales';
-import type { LinearScale } from './utils/scales';
-import { checkWebGPUSupport } from './utils/checkWebGPU';
-import type { PipelineCache } from './core/PipelineCache';
+} from "./config/types";
+import { createDataZoomSlider } from "./components/createDataZoomSlider";
+import type { DataZoomSlider } from "./components/createDataZoomSlider";
+import { createZoomResetButton } from "./components/createZoomResetButton";
+import type { ZoomResetButton } from "./components/createZoomResetButton";
+import type { ZoomRange, ZoomState } from "./interaction/createZoomState";
+import {
+  computeCandlestickBodyWidthRange,
+  findCandlestick,
+} from "./interaction/findCandlestick";
+import { findNearestPoint } from "./interaction/findNearestPoint";
+import type { NearestPointMatch } from "./interaction/findNearestPoint";
+import { findPieSlice } from "./interaction/findPieSlice";
+import { createLinearScale } from "./utils/scales";
+import type { LinearScale } from "./utils/scales";
+import { checkWebGPUSupport } from "./utils/checkWebGPU";
+import type { PipelineCache } from "./core/PipelineCache";
+export type { PipelineCache, PipelineCacheStats } from "./core/PipelineCache";
 import type {
   PerformanceMetrics,
   PerformanceCapabilities,
@@ -41,14 +48,14 @@ import type {
   GPUTimingStats,
   MemoryStats,
   FrameDropStats,
-} from './config/types';
+} from "./config/types";
 import {
   computeRawBoundsFromCartesianData,
   getPointCount as getCartesianPointCount,
   getSize as getCartesianSize,
   getX as getCartesianX,
   getY as getCartesianY,
-} from './data/cartesianData';
+} from "./data/cartesianData";
 
 // --- Instance registry for auto-dispose on page unload (CGPU-OOM-139) ---
 const activeInstances = new Set<{ dispose(): void; disposed: boolean }>();
@@ -73,17 +80,21 @@ function handlePageHide(event: PageTransitionEvent): void {
 
 function ensureUnloadListeners(): void {
   if (unloadListenersRegistered) return;
-  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  if (
+    typeof window === "undefined" ||
+    typeof window.addEventListener !== "function"
+  )
+    return;
   unloadListenersRegistered = true;
 
-  window.addEventListener('pagehide', handlePageHide);
+  window.addEventListener("pagehide", handlePageHide);
 }
 
 /** @internal — exposed for test cleanup only. Not part of the public API. */
 export function _resetInstanceRegistryForTesting(): void {
   activeInstances.clear();
-  if (typeof window !== 'undefined' && unloadListenersRegistered) {
-    window.removeEventListener('pagehide', handlePageHide);
+  if (typeof window !== "undefined" && unloadListenersRegistered) {
+    window.removeEventListener("pagehide", handlePageHide);
     unloadListenersRegistered = false;
   }
 }
@@ -111,13 +122,13 @@ const FRAME_DROP_THRESHOLD_MULTIPLIER = 1.5;
  * - `'auto-scroll'`: Automatic zoom adjustment from streaming data with auto-scroll enabled
  * - `'api'`: Programmatic zoom via `setZoomRange(..., source)` calls
  */
-export type ZoomChangeSourceKind = 'user' | 'auto-scroll' | 'api';
+export type ZoomChangeSourceKind = "user" | "auto-scroll" | "api";
 
 /**
  * Hit-test match for a chart element.
  */
 export type ChartGPUHitTestMatch = Readonly<{
-  readonly kind: 'cartesian' | 'candlestick' | 'pie';
+  readonly kind: "cartesian" | "candlestick" | "pie";
   readonly seriesIndex: number;
   readonly dataIndex: number;
   readonly value: readonly [number, number];
@@ -155,18 +166,30 @@ export interface ChartGPUInstance {
    *
    * Pie series are non-cartesian and are not supported by streaming append.
    */
-  appendData(seriesIndex: number, newPoints: CartesianSeriesData | OHLCDataPoint[]): void;
+  appendData(
+    seriesIndex: number,
+    newPoints: CartesianSeriesData | OHLCDataPoint[],
+  ): void;
   resize(): void;
   dispose(): void;
-  on(eventName: 'crosshairMove', callback: ChartGPUCrosshairMoveCallback): void;
-  on(eventName: 'zoomRangeChange', callback: ChartGPUZoomRangeChangeCallback): void;
-  on(eventName: 'deviceLost', callback: ChartGPUDeviceLostCallback): void;
-  on(eventName: 'dataAppend', callback: ChartGPUDataAppendCallback): void;
+  on(eventName: "crosshairMove", callback: ChartGPUCrosshairMoveCallback): void;
+  on(
+    eventName: "zoomRangeChange",
+    callback: ChartGPUZoomRangeChangeCallback,
+  ): void;
+  on(eventName: "deviceLost", callback: ChartGPUDeviceLostCallback): void;
+  on(eventName: "dataAppend", callback: ChartGPUDataAppendCallback): void;
   on(eventName: ChartGPUEventName, callback: ChartGPUEventCallback): void;
-  off(eventName: 'crosshairMove', callback: ChartGPUCrosshairMoveCallback): void;
-  off(eventName: 'zoomRangeChange', callback: ChartGPUZoomRangeChangeCallback): void;
-  off(eventName: 'deviceLost', callback: ChartGPUDeviceLostCallback): void;
-  off(eventName: 'dataAppend', callback: ChartGPUDataAppendCallback): void;
+  off(
+    eventName: "crosshairMove",
+    callback: ChartGPUCrosshairMoveCallback,
+  ): void;
+  off(
+    eventName: "zoomRangeChange",
+    callback: ChartGPUZoomRangeChangeCallback,
+  ): void;
+  off(eventName: "deviceLost", callback: ChartGPUDeviceLostCallback): void;
+  off(eventName: "dataAppend", callback: ChartGPUDataAppendCallback): void;
   off(eventName: ChartGPUEventName, callback: ChartGPUEventCallback): void;
   /**
    * Gets the current “interaction x” in domain units (or `null` when inactive).
@@ -190,7 +213,9 @@ export interface ChartGPUInstance {
    *
    * Returns an unsubscribe function.
    */
-  onInteractionXChange(callback: (x: number | null, source?: unknown) => void): () => void;
+  onInteractionXChange(
+    callback: (x: number | null, source?: unknown) => void,
+  ): () => void;
   /**
    * Returns the current percent-space zoom window (or `null` when zoom is disabled).
    */
@@ -222,7 +247,9 @@ export interface ChartGPUInstance {
    * @param callback - Function to call with updated metrics
    * @returns Unsubscribe function to remove the callback
    */
-  onPerformanceUpdate(callback: (metrics: Readonly<PerformanceMetrics>) => void): () => void;
+  onPerformanceUpdate(
+    callback: (metrics: Readonly<PerformanceMetrics>) => void,
+  ): () => void;
   /**
    * Performs hit-testing on a pointer or mouse event.
    *
@@ -264,13 +291,13 @@ export interface ChartGPUInstance {
 export type ChartGPU = ChartGPUInstance;
 
 export type ChartGPUEventName =
-  | 'click'
-  | 'mouseover'
-  | 'mouseout'
-  | 'crosshairMove'
-  | 'zoomRangeChange'
-  | 'deviceLost'
-  | 'dataAppend';
+  | "click"
+  | "mouseover"
+  | "mouseout"
+  | "crosshairMove"
+  | "zoomRangeChange"
+  | "deviceLost"
+  | "dataAppend";
 
 export type ChartGPUEventPayload = Readonly<{
   readonly seriesIndex: number | null;
@@ -305,13 +332,21 @@ export type ChartGPUDataAppendPayload = Readonly<{
 
 export type ChartGPUEventCallback = (payload: ChartGPUEventPayload) => void;
 
-export type ChartGPUCrosshairMoveCallback = (payload: ChartGPUCrosshairMovePayload) => void;
+export type ChartGPUCrosshairMoveCallback = (
+  payload: ChartGPUCrosshairMovePayload,
+) => void;
 
-export type ChartGPUZoomRangeChangeCallback = (payload: ChartGPUZoomRangeChangePayload) => void;
+export type ChartGPUZoomRangeChangeCallback = (
+  payload: ChartGPUZoomRangeChangePayload,
+) => void;
 
-export type ChartGPUDeviceLostCallback = (payload: ChartGPUDeviceLostPayload) => void;
+export type ChartGPUDeviceLostCallback = (
+  payload: ChartGPUDeviceLostPayload,
+) => void;
 
-export type ChartGPUDataAppendCallback = (payload: ChartGPUDataAppendPayload) => void;
+export type ChartGPUDataAppendCallback = (
+  payload: ChartGPUDataAppendPayload,
+) => void;
 
 type AnyChartGPUEventCallback =
   | ChartGPUEventCallback
@@ -320,7 +355,9 @@ type AnyChartGPUEventCallback =
   | ChartGPUDeviceLostCallback
   | ChartGPUDataAppendCallback;
 
-type ListenerRegistry = Readonly<Record<ChartGPUEventName, Set<AnyChartGPUEventCallback>>>;
+type ListenerRegistry = Readonly<
+  Record<ChartGPUEventName, Set<AnyChartGPUEventCallback>>
+>;
 
 // Pipeline cache types are defined in `src/core/PipelineCache.ts` and re-exported near the top
 // of this file so public API uses a single canonical definition.
@@ -359,7 +396,12 @@ type TapCandidate = {
 const DEFAULT_TAP_MAX_DISTANCE_CSS_PX = 6;
 const DEFAULT_TAP_MAX_TIME_MS = 500;
 
-type Bounds = Readonly<{ xMin: number; xMax: number; yMin: number; yMax: number }>;
+type Bounds = Readonly<{
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+}>;
 
 /**
  * Mutable columnar store for cartesian series data in the hit-test runtime.
@@ -373,10 +415,14 @@ type MutableXYColumns = {
   size?: (number | undefined)[];
 };
 
-const isTupleDataPoint = (p: DataPoint): p is DataPointTuple => Array.isArray(p);
-const isTupleOHLCDataPoint = (p: OHLCDataPoint): p is OHLCDataPointTuple => Array.isArray(p);
+const isTupleDataPoint = (p: DataPoint): p is DataPointTuple =>
+  Array.isArray(p);
+const isTupleOHLCDataPoint = (p: OHLCDataPoint): p is OHLCDataPointTuple =>
+  Array.isArray(p);
 
-const getPointXY = (p: DataPoint): { readonly x: number; readonly y: number } => {
+const getPointXY = (
+  p: DataPoint,
+): { readonly x: number; readonly y: number } => {
   if (isTupleDataPoint(p)) return { x: p[0], y: p[1] };
   return { x: p.x, y: p.y };
 };
@@ -386,7 +432,9 @@ const getPointXY = (p: DataPoint): { readonly x: number; readonly y: number } =>
  * Extracts x, y, and optional size values into separate mutable arrays.
  * Size array is aligned with x/y arrays (same length), with undefined for points without size values.
  */
-const cartesianDataToMutableColumns = (data: CartesianSeriesData): MutableXYColumns => {
+const cartesianDataToMutableColumns = (
+  data: CartesianSeriesData,
+): MutableXYColumns => {
   const n = getCartesianPointCount(data);
   if (n === 0) return { x: [], y: [] };
 
@@ -408,15 +456,18 @@ const cartesianDataToMutableColumns = (data: CartesianSeriesData): MutableXYColu
   return hasSizeValues ? { x, y, size: sizeValues } : { x, y };
 };
 
-const getOHLCTimestamp = (p: OHLCDataPoint): number => (isTupleOHLCDataPoint(p) ? p[0] : p.timestamp);
-const getOHLCClose = (p: OHLCDataPoint): number => (isTupleOHLCDataPoint(p) ? p[2] : p.close);
+const getOHLCTimestamp = (p: OHLCDataPoint): number =>
+  isTupleOHLCDataPoint(p) ? p[0] : p.timestamp;
+const getOHLCClose = (p: OHLCDataPoint): number =>
+  isTupleOHLCDataPoint(p) ? p[2] : p.close;
 
 const hasSliderDataZoom = (options: ChartGPUOptions): boolean =>
-  options.dataZoom?.some((z) => z?.type === 'slider') ?? false;
+  options.dataZoom?.some((z) => z?.type === "slider") ?? false;
 const hasInsideDataZoom = (options: ChartGPUOptions): boolean =>
-  options.dataZoom?.some((z) => z?.type === 'inside') ?? false;
+  options.dataZoom?.some((z) => z?.type === "inside") ?? false;
 
-const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
+const clamp = (v: number, lo: number, hi: number): number =>
+  Math.min(hi, Math.max(lo, v));
 
 type InteractionScalesCache = {
   rectWidthCss: number;
@@ -435,11 +486,14 @@ type InteractionScalesCache = {
  * Extends bounds with new CartesianSeriesData (any format).
  * Optimized to avoid per-point type checks for typed arrays.
  */
-const extendBoundsWithCartesianData = (bounds: Bounds | null, data: CartesianSeriesData): Bounds | null => {
+const extendBoundsWithCartesianData = (
+  bounds: Bounds | null,
+  data: CartesianSeriesData,
+): Bounds | null => {
   const n = getCartesianPointCount(data);
   if (n === 0) return bounds;
 
-  const b = bounds;
+  let b = bounds;
   if (!b) {
     // No existing bounds - compute from scratch (already optimized)
     return computeRawBoundsFromCartesianData(data);
@@ -454,9 +508,18 @@ const extendBoundsWithCartesianData = (bounds: Bounds | null, data: CartesianSer
   // NOTE: Format detection logic is duplicated in 2 places and must stay in sync:
   // 1. extendBoundsWithCartesianData (here) - for bounds updates
   // 2. appendData method - for columnar store appends (also computes xExtent inline)
-  const isXYArrays = typeof data === 'object' && data !== null && !Array.isArray(data) && 'x' in data && 'y' in data;
+  const isXYArrays =
+    typeof data === "object" &&
+    data !== null &&
+    !Array.isArray(data) &&
+    "x" in data &&
+    "y" in data;
 
-  const isInterleaved = typeof data === 'object' && data !== null && !Array.isArray(data) && ArrayBuffer.isView(data);
+  const isInterleaved =
+    typeof data === "object" &&
+    data !== null &&
+    !Array.isArray(data) &&
+    ArrayBuffer.isView(data);
 
   if (isXYArrays) {
     // Fast path for XYArraysData
@@ -502,7 +565,10 @@ const extendBoundsWithCartesianData = (bounds: Bounds | null, data: CartesianSer
   return { xMin, xMax, yMin, yMax };
 };
 
-const extendBoundsWithOHLCDataPoints = (bounds: Bounds | null, points: ReadonlyArray<OHLCDataPoint>): Bounds | null => {
+const extendBoundsWithOHLCDataPoints = (
+  bounds: Bounds | null,
+  points: ReadonlyArray<OHLCDataPoint>,
+): Bounds | null => {
   if (points.length === 0) return bounds;
 
   let xMin = bounds?.xMin ?? Number.POSITIVE_INFINITY;
@@ -516,14 +582,24 @@ const extendBoundsWithOHLCDataPoints = (bounds: Bounds | null, points: ReadonlyA
     const low = isTupleOHLCDataPoint(p) ? p[3] : p.low;
     const high = isTupleOHLCDataPoint(p) ? p[4] : p.high;
 
-    if (!Number.isFinite(timestamp) || !Number.isFinite(low) || !Number.isFinite(high)) continue;
+    if (
+      !Number.isFinite(timestamp) ||
+      !Number.isFinite(low) ||
+      !Number.isFinite(high)
+    )
+      continue;
     if (timestamp < xMin) xMin = timestamp;
     if (timestamp > xMax) xMax = timestamp;
     if (low < yMin) yMin = low;
     if (high > yMax) yMax = high;
   }
 
-  if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || !Number.isFinite(yMin) || !Number.isFinite(yMax)) {
+  if (
+    !Number.isFinite(xMin) ||
+    !Number.isFinite(xMax) ||
+    !Number.isFinite(yMin) ||
+    !Number.isFinite(yMax)
+  ) {
     return bounds;
   }
 
@@ -535,8 +611,8 @@ const extendBoundsWithOHLCDataPoints = (bounds: Bounds | null, points: ReadonlyA
 };
 
 const computeGlobalBounds = (
-  series: ResolvedChartGPUOptions['series'],
-  runtimeRawBoundsByIndex?: ReadonlyArray<Bounds | null> | null
+  series: ResolvedChartGPUOptions["series"],
+  runtimeRawBoundsByIndex?: ReadonlyArray<Bounds | null> | null,
 ): Bounds => {
   let xMin = Number.POSITIVE_INFINITY;
   let xMax = Number.NEGATIVE_INFINITY;
@@ -546,13 +622,18 @@ const computeGlobalBounds = (
   for (let s = 0; s < series.length; s++) {
     const seriesConfig = series[s]!;
     // Pie series are non-cartesian; they don't participate in x/y bounds.
-    if (seriesConfig.type === 'pie') continue;
+    if (seriesConfig.type === "pie") continue;
 
     // Prefer the chart-owned runtime bounds (kept up to date by appendData()).
     const runtimeBoundsCandidate = runtimeRawBoundsByIndex?.[s] ?? null;
     if (runtimeBoundsCandidate) {
       const b = runtimeBoundsCandidate;
-      if (Number.isFinite(b.xMin) && Number.isFinite(b.xMax) && Number.isFinite(b.yMin) && Number.isFinite(b.yMax)) {
+      if (
+        Number.isFinite(b.xMin) &&
+        Number.isFinite(b.xMax) &&
+        Number.isFinite(b.yMin) &&
+        Number.isFinite(b.yMax)
+      ) {
         if (b.xMin < xMin) xMin = b.xMin;
         if (b.xMax > xMax) xMax = b.xMax;
         if (b.yMin < yMin) yMin = b.yMin;
@@ -563,10 +644,17 @@ const computeGlobalBounds = (
 
     // Prefer resolver-provided bounds when available (avoids O(n) scans on initial setOption()).
     // (Resolved series types include `rawBounds` for cartesian series; keep this defensive.)
-    const rawBoundsCandidate = (seriesConfig as unknown as { rawBounds?: Bounds | null }).rawBounds ?? null;
+    const rawBoundsCandidate =
+      (seriesConfig as unknown as { rawBounds?: Bounds | null }).rawBounds ??
+      null;
     if (rawBoundsCandidate) {
       const b = rawBoundsCandidate;
-      if (Number.isFinite(b.xMin) && Number.isFinite(b.xMax) && Number.isFinite(b.yMin) && Number.isFinite(b.yMax)) {
+      if (
+        Number.isFinite(b.xMin) &&
+        Number.isFinite(b.xMax) &&
+        Number.isFinite(b.yMin) &&
+        Number.isFinite(b.yMax)
+      ) {
         if (b.xMin < xMin) xMin = b.xMin;
         if (b.xMax > xMax) xMax = b.xMax;
         if (b.yMin < yMin) yMin = b.yMin;
@@ -575,7 +663,7 @@ const computeGlobalBounds = (
       }
     }
 
-    if (seriesConfig.type === 'candlestick') {
+    if (seriesConfig.type === "candlestick") {
       // Fallback scan when resolver-provided bounds aren't present.
       const data = seriesConfig.data as ReadonlyArray<OHLCDataPoint>;
       for (let i = 0; i < data.length; i++) {
@@ -584,7 +672,12 @@ const computeGlobalBounds = (
         const low = isTupleOHLCDataPoint(p) ? p[3] : p.low;
         const high = isTupleOHLCDataPoint(p) ? p[4] : p.high;
 
-        if (!Number.isFinite(timestamp) || !Number.isFinite(low) || !Number.isFinite(high)) continue;
+        if (
+          !Number.isFinite(timestamp) ||
+          !Number.isFinite(low) ||
+          !Number.isFinite(high)
+        )
+          continue;
         if (timestamp < xMin) xMin = timestamp;
         if (timestamp > xMax) xMax = timestamp;
         if (low < yMin) yMin = low;
@@ -593,7 +686,9 @@ const computeGlobalBounds = (
       continue;
     }
 
-    const b = computeRawBoundsFromCartesianData(seriesConfig.data as CartesianSeriesData);
+    const b = computeRawBoundsFromCartesianData(
+      seriesConfig.data as CartesianSeriesData,
+    );
     if (!b) continue;
     if (b.xMin < xMin) xMin = b.xMin;
     if (b.xMax > xMax) xMax = b.xMax;
@@ -601,7 +696,12 @@ const computeGlobalBounds = (
     if (b.yMax > yMax) yMax = b.yMax;
   }
 
-  if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || !Number.isFinite(yMin) || !Number.isFinite(yMax)) {
+  if (
+    !Number.isFinite(xMin) ||
+    !Number.isFinite(xMax) ||
+    !Number.isFinite(yMin) ||
+    !Number.isFinite(yMax)
+  ) {
     return { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
   }
 
@@ -613,7 +713,7 @@ const computeGlobalBounds = (
 
 const normalizeDomain = (
   minCandidate: number,
-  maxCandidate: number
+  maxCandidate: number,
 ): { readonly min: number; readonly max: number } => {
   let min = minCandidate;
   let max = maxCandidate;
@@ -635,34 +735,40 @@ const normalizeDomain = (
 };
 
 type CartesianHitTestMatch = Readonly<{
-  kind: 'cartesian';
+  kind: "cartesian";
   match: NearestPointMatch;
 }>;
 
 type PieHitTestMatch = Readonly<{
-  kind: 'pie';
+  kind: "pie";
   seriesIndex: number;
   dataIndex: number;
   sliceValue: number;
 }>;
 
 type CandlestickHitTestMatch = Readonly<{
-  kind: 'candlestick';
+  kind: "candlestick";
   seriesIndex: number;
   dataIndex: number;
   point: OHLCDataPoint;
 }>;
 
-type HitTestMatch = CartesianHitTestMatch | PieHitTestMatch | CandlestickHitTestMatch;
+type HitTestMatch =
+  | CartesianHitTestMatch
+  | PieHitTestMatch
+  | CandlestickHitTestMatch;
 
-const parseNumberOrPercent = (value: number | string, basis: number): number | null => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value !== 'string') return null;
+const parseNumberOrPercent = (
+  value: number | string,
+  basis: number,
+): number | null => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
 
   const s = value.trim();
   if (s.length === 0) return null;
 
-  if (s.endsWith('%')) {
+  if (s.endsWith("%")) {
     const pct = Number.parseFloat(s.slice(0, -1));
     if (!Number.isFinite(pct)) return null;
     return (pct / 100) * basis;
@@ -676,10 +782,10 @@ const parseNumberOrPercent = (value: number | string, basis: number): number | n
 const resolvePieCenterPlotCss = (
   center: PieCenter | undefined,
   plotWidthCss: number,
-  plotHeightCss: number
+  plotHeightCss: number,
 ): { readonly x: number; readonly y: number } => {
-  const xRaw = center?.[0] ?? '50%';
-  const yRaw = center?.[1] ?? '50%';
+  const xRaw = center?.[0] ?? "50%";
+  const yRaw = center?.[1] ?? "50%";
 
   const x = parseNumberOrPercent(xRaw, plotWidthCss);
   const y = parseNumberOrPercent(yRaw, plotHeightCss);
@@ -690,12 +796,14 @@ const resolvePieCenterPlotCss = (
   };
 };
 
-const isPieRadiusTuple = (radius: PieRadius): radius is readonly [inner: number | string, outer: number | string] =>
+const isPieRadiusTuple = (
+  radius: PieRadius,
+): radius is readonly [inner: number | string, outer: number | string] =>
   Array.isArray(radius);
 
 const resolvePieRadiiCss = (
   radius: PieRadius | undefined,
-  maxRadiusCss: number
+  maxRadiusCss: number,
 ): { readonly inner: number; readonly outer: number } => {
   // Default similar to common chart libs (mirrors `createPieRenderer.ts` and coordinator helpers).
   if (radius == null) return { inner: 0, outer: maxRadiusCss * 0.7 };
@@ -704,19 +812,28 @@ const resolvePieRadiiCss = (
     const inner = parseNumberOrPercent(radius[0], maxRadiusCss);
     const outer = parseNumberOrPercent(radius[1], maxRadiusCss);
     const innerCss = Math.max(0, Number.isFinite(inner) ? inner! : 0);
-    const outerCss = Math.max(innerCss, Number.isFinite(outer) ? outer! : maxRadiusCss * 0.7);
+    const outerCss = Math.max(
+      innerCss,
+      Number.isFinite(outer) ? outer! : maxRadiusCss * 0.7,
+    );
     return { inner: innerCss, outer: Math.min(maxRadiusCss, outerCss) };
   }
 
   const outer = parseNumberOrPercent(radius, maxRadiusCss);
-  const outerCss = Math.max(0, Number.isFinite(outer) ? outer! : maxRadiusCss * 0.7);
+  const outerCss = Math.max(
+    0,
+    Number.isFinite(outer) ? outer! : maxRadiusCss * 0.7,
+  );
   return { inner: 0, outer: Math.min(maxRadiusCss, outerCss) };
 };
 
 /**
  * Creates a ChartGPU instance with default WebGPU initialization.
  */
-export async function createChartGPU(container: HTMLElement, options: ChartGPUOptions): Promise<ChartGPUInstance>;
+export async function createChartGPU(
+  container: HTMLElement,
+  options: ChartGPUOptions,
+): Promise<ChartGPUInstance>;
 
 /**
  * Creates a ChartGPU instance with a shared WebGPU device and adapter.
@@ -729,13 +846,13 @@ export async function createChartGPU(container: HTMLElement, options: ChartGPUOp
 export async function createChartGPU(
   container: HTMLElement,
   options: ChartGPUOptions,
-  context: ChartGPUCreateContext
+  context: ChartGPUCreateContext,
 ): Promise<ChartGPUInstance>;
 
 export async function createChartGPU(
   container: HTMLElement,
   options: ChartGPUOptions,
-  context?: ChartGPUCreateContext
+  context?: ChartGPUCreateContext,
 ): Promise<ChartGPUInstance> {
   // Check WebGPU support before creating canvas or any resources.
   // When the caller injects an adapter+device, avoid requesting another adapter during the
@@ -743,7 +860,7 @@ export async function createChartGPU(
   if (!context) {
     const supportCheck = await checkWebGPUSupport();
     if (!supportCheck.supported) {
-      const reason = supportCheck.reason || 'Unknown reason';
+      const reason = supportCheck.reason || "Unknown reason";
       throw new Error(
         `ChartGPU: WebGPU is not available.\n` +
           `Reason: ${reason}\n` +
@@ -752,30 +869,35 @@ export async function createChartGPU(
           `  - MDN WebGPU API: https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API\n` +
           `  - Browser compatibility: https://caniuse.com/webgpu\n` +
           `  - WebGPU specification: https://www.w3.org/TR/webgpu/\n` +
-          `  - Check your system: https://webgpureport.org/`
+          `  - Check your system: https://webgpureport.org/`,
       );
     }
   } else {
     // Minimal sanity checks: the injected device path still requires WebGPU globals for canvas format negotiation.
-    if (typeof navigator === 'undefined' || !navigator.gpu) {
-      throw new Error('ChartGPU: Shared device mode requires WebGPU globals (navigator.gpu) to be available.');
+    if (typeof navigator === "undefined" || !navigator.gpu) {
+      throw new Error(
+        "ChartGPU: Shared device mode requires WebGPU globals (navigator.gpu) to be available.",
+      );
     }
   }
 
   // Fail fast: pipeline cache (if provided) must be created for the same GPUDevice this chart will use.
-  if (context?.pipelineCache && context.pipelineCache.device !== context.device) {
+  if (
+    context?.pipelineCache &&
+    context.pipelineCache.device !== context.device
+  ) {
     throw new Error(
-      'ChartGPU: pipelineCache.device must match the GPUDevice in the creation context. ' +
-        'Create the pipeline cache with the same device: createPipelineCache(device).'
+      "ChartGPU: pipelineCache.device must match the GPUDevice in the creation context. " +
+        "Create the pipeline cache with the same device: createPipelineCache(device).",
     );
   }
 
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
 
   // Ensure the canvas participates in layout and can size via the container.
-  canvas.style.display = 'block';
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
+  canvas.style.display = "block";
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
 
   // Append before awaiting so it appears immediately and has measurable size.
   container.appendChild(canvas);
@@ -783,7 +905,7 @@ export async function createChartGPU(
   const isSharedDevice = !!context;
 
   let disposed = false;
-  let renderMode: RenderMode = options.renderMode ?? 'auto';
+  let renderMode: RenderMode = options.renderMode ?? "auto";
   let isRendering = false;
   let deviceIsLost = false;
   let gpuContext: GPUContext | null = null;
@@ -803,39 +925,53 @@ export async function createChartGPU(
   let zoomResetButton: ZoomResetButton | null = null;
 
   let currentOptions: ChartGPUOptions = options;
-  let resolvedOptions: ResolvedChartGPUOptions = resolveOptionsForChart(currentOptions);
+  let resolvedOptions: ResolvedChartGPUOptions =
+    resolveOptionsForChart(currentOptions);
 
   // Chart-owned runtime series store for hit-testing only (cartesian only).
   // - `runtimeRawDataByIndex[i]` is a mutable columnar store (MutableXYColumns) for non-candlestick series,
   //   or a mutable OHLCDataPoint[] for candlestick series. This supports efficient streaming appends
   //   without per-point object allocations.
   // - `runtimeRawBoundsByIndex[i]` is incrementally updated to keep scale/bounds derivation cheap.
-  let runtimeRawDataByIndex: Array<MutableXYColumns | OHLCDataPoint[]> = new Array(resolvedOptions.series.length)
-    .fill(null)
-    .map(() => ({ x: [], y: [] }));
-  let runtimeRawBoundsByIndex: Array<Bounds | null> = new Array(resolvedOptions.series.length).fill(null);
-  let runtimeHitTestSeriesCache: ResolvedChartGPUOptions['series'] | null = null;
+  let runtimeRawDataByIndex: Array<MutableXYColumns | OHLCDataPoint[]> =
+    new Array(resolvedOptions.series.length)
+      .fill(null)
+      .map(() => ({ x: [], y: [] }));
+  let runtimeRawBoundsByIndex: Array<Bounds | null> = new Array(
+    resolvedOptions.series.length,
+  ).fill(null);
+  let runtimeHitTestSeriesCache: ResolvedChartGPUOptions["series"] | null =
+    null;
+  let runtimeHitTestSeriesVersion = 0;
 
   const initRuntimeHitTestStoreFromResolvedOptions = (): void => {
-    runtimeRawDataByIndex = new Array(resolvedOptions.series.length).fill(null).map(() => ({ x: [], y: [] }));
-    runtimeRawBoundsByIndex = new Array(resolvedOptions.series.length).fill(null);
+    runtimeRawDataByIndex = new Array(resolvedOptions.series.length)
+      .fill(null)
+      .map(() => ({ x: [], y: [] }));
+    runtimeRawBoundsByIndex = new Array(resolvedOptions.series.length).fill(
+      null,
+    );
     runtimeHitTestSeriesCache = null;
+    runtimeHitTestSeriesVersion++;
 
     for (let i = 0; i < resolvedOptions.series.length; i++) {
       const s = resolvedOptions.series[i]!;
-      if (s.type === 'pie') {
+      if (s.type === "pie") {
         // Pie series don't use the runtime store (non-cartesian)
         runtimeRawDataByIndex[i] = { x: [], y: [] };
         continue;
       }
 
-      if (s.type === 'candlestick') {
-        const raw = ((s as unknown as { rawData?: ReadonlyArray<OHLCDataPoint> }).rawData ??
-          s.data) as ReadonlyArray<OHLCDataPoint>;
+      if (s.type === "candlestick") {
+        const raw = ((
+          s as unknown as { rawData?: ReadonlyArray<OHLCDataPoint> }
+        ).rawData ?? s.data) as ReadonlyArray<OHLCDataPoint>;
         runtimeRawDataByIndex[i] = raw.length === 0 ? [] : raw.slice();
-        runtimeRawBoundsByIndex[i] = (s as unknown as { rawBounds?: Bounds | null }).rawBounds ?? null;
+        runtimeRawBoundsByIndex[i] =
+          (s as unknown as { rawBounds?: Bounds | null }).rawBounds ?? null;
       } else {
-        const raw = ((s as unknown as { rawData?: CartesianSeriesData }).rawData ?? s.data) as CartesianSeriesData;
+        const raw = ((s as unknown as { rawData?: CartesianSeriesData })
+          .rawData ?? s.data) as CartesianSeriesData;
         runtimeRawDataByIndex[i] = cartesianDataToMutableColumns(raw);
         runtimeRawBoundsByIndex[i] =
           (s as unknown as { rawBounds?: Bounds | null }).rawBounds ??
@@ -845,25 +981,33 @@ export async function createChartGPU(
     }
   };
 
-  const getRuntimeHitTestSeries = (): ResolvedChartGPUOptions['series'] => {
+  const getRuntimeHitTestSeries = (): ResolvedChartGPUOptions["series"] => {
     if (runtimeHitTestSeriesCache) return runtimeHitTestSeriesCache;
     // Replace cartesian series `data` with chart-owned runtime data (pie series are unchanged).
     runtimeHitTestSeriesCache = resolvedOptions.series.map((s, i) => {
-      if (s.type === 'pie') return s;
-      if (s.type === 'candlestick') {
-        return { ...s, data: runtimeRawDataByIndex[i] ?? (s.data as ReadonlyArray<OHLCDataPoint>) };
+      if (s.type === "pie") return s;
+      if (s.type === "candlestick") {
+        return {
+          ...s,
+          data:
+            runtimeRawDataByIndex[i] ??
+            (s.data as ReadonlyArray<OHLCDataPoint>),
+        };
       }
       // For non-candlestick cartesian series, runtime store is MutableXYColumns (compatible with XYArraysData)
       const runtimeData = runtimeRawDataByIndex[i] as MutableXYColumns;
       return { ...s, data: runtimeData as CartesianSeriesData };
-    }) as ResolvedChartGPUOptions['series'];
+    }) as ResolvedChartGPUOptions["series"];
     return runtimeHitTestSeriesCache;
   };
 
   initRuntimeHitTestStoreFromResolvedOptions();
 
   // Cache global bounds and interaction scales; avoids O(N) data scans per pointer move.
-  let cachedGlobalBounds: Bounds = computeGlobalBounds(resolvedOptions.series, runtimeRawBoundsByIndex);
+  let cachedGlobalBounds: Bounds = computeGlobalBounds(
+    resolvedOptions.series,
+    runtimeRawBoundsByIndex,
+  );
   let interactionScalesCache: InteractionScalesCache | null = null;
 
   const listeners: ListenerRegistry = {
@@ -888,7 +1032,11 @@ export async function createChartGPU(
   const warnedPieAppendSeries = new Set<number>();
 
   let scheduledRaf: number | null = null;
-  let lastConfigured: { width: number; height: number; format: GPUTextureFormat } | null = null;
+  let lastConfigured: {
+    width: number;
+    height: number;
+    format: GPUTextureFormat;
+  } | null = null;
   let isDirty = true;
 
   // Performance tracking state
@@ -902,9 +1050,12 @@ export async function createChartGPU(
   const startTime = performance.now();
   let lastFrameTime = 0;
   let lastCPUTime = 0;
-  const performanceUpdateCallbacks = new Set<(metrics: Readonly<PerformanceMetrics>) => void>();
+  const performanceUpdateCallbacks = new Set<
+    (metrics: Readonly<PerformanceMetrics>) => void
+  >();
 
-  const hasHoverListeners = (): boolean => listeners.mouseover.size > 0 || listeners.mouseout.size > 0;
+  const hasHoverListeners = (): boolean =>
+    listeners.mouseover.size > 0 || listeners.mouseout.size > 0;
   const hasClickListeners = (): boolean => listeners.click.size > 0;
 
   const cancelPendingFrame = (): void => {
@@ -938,7 +1089,10 @@ export async function createChartGPU(
       if (trackFrameDrops) {
         if (lastFrameTime > 0) {
           const deltaTime = frameStartTime - lastFrameTime;
-          if (deltaTime > EXPECTED_FRAME_TIME_MS * FRAME_DROP_THRESHOLD_MULTIPLIER) {
+          if (
+            deltaTime >
+            EXPECTED_FRAME_TIME_MS * FRAME_DROP_THRESHOLD_MULTIPLIER
+          ) {
             totalDroppedFrames++;
             consecutiveDroppedFrames++;
             lastDropTimestamp = frameStartTime;
@@ -967,7 +1121,7 @@ export async function createChartGPU(
         try {
           callback(metrics);
         } catch (error) {
-          console.error('Error in performance update callback:', error);
+          console.error("Error in performance update callback:", error);
         }
       }
     } finally {
@@ -978,7 +1132,7 @@ export async function createChartGPU(
   const requestRender = (): void => {
     if (disposed) return;
     isDirty = true;
-    if (renderMode === 'external') return;
+    if (renderMode === "external") return;
     if (scheduledRaf !== null) return;
     scheduledRaf = requestAnimationFrame(() => {
       scheduledRaf = null;
@@ -1022,7 +1176,8 @@ export async function createChartGPU(
 
   const DATA_ZOOM_SLIDER_HEIGHT_CSS_PX = 32;
   const DATA_ZOOM_SLIDER_MARGIN_TOP_CSS_PX = 8;
-  const DATA_ZOOM_SLIDER_RESERVE_CSS_PX = DATA_ZOOM_SLIDER_HEIGHT_CSS_PX + DATA_ZOOM_SLIDER_MARGIN_TOP_CSS_PX;
+  const DATA_ZOOM_SLIDER_RESERVE_CSS_PX =
+    DATA_ZOOM_SLIDER_HEIGHT_CSS_PX + DATA_ZOOM_SLIDER_MARGIN_TOP_CSS_PX;
 
   const ensureDataZoomSliderHost = (): HTMLDivElement => {
     if (dataZoomSliderHost) return dataZoomSliderHost;
@@ -1031,39 +1186,44 @@ export async function createChartGPU(
     // If the container is already positioned, avoid overwriting user styles.
     try {
       const pos = window.getComputedStyle(container).position;
-      if (pos === 'static') container.style.position = 'relative';
+      if (pos === "static") container.style.position = "relative";
     } catch {
       // best-effort
     }
 
-    const host = document.createElement('div');
-    host.style.position = 'absolute';
-    host.style.left = '0';
-    host.style.right = '0';
-    host.style.bottom = '0';
+    const host = document.createElement("div");
+    host.style.position = "absolute";
+    host.style.left = "0";
+    host.style.right = "0";
+    host.style.bottom = "0";
     host.style.height = `${DATA_ZOOM_SLIDER_RESERVE_CSS_PX}px`;
     host.style.paddingTop = `${DATA_ZOOM_SLIDER_MARGIN_TOP_CSS_PX}px`;
-    host.style.boxSizing = 'border-box';
-    host.style.pointerEvents = 'auto';
-    host.style.zIndex = '5';
+    host.style.boxSizing = "border-box";
+    host.style.pointerEvents = "auto";
+    host.style.zIndex = "5";
     container.appendChild(host);
     dataZoomSliderHost = host;
     return host;
   };
 
-  const computeZoomInOutAnchorRatio = (range: ZoomRange, center: number): number => {
+  const computeZoomInOutAnchorRatio = (
+    range: ZoomRange,
+    center: number,
+  ): number => {
     const span = range.end - range.start;
     if (!Number.isFinite(span) || span === 0) return 0.5;
     return clamp((center - range.start) / span, 0, 1);
   };
 
   const createCoordinatorZoomStateLike = (): ZoomState => {
-    const getRange: ZoomState['getRange'] = () => coordinator?.getZoomRange() ?? { start: 0, end: 100 };
-    const setRange: ZoomState['setRange'] = (start, end) => {
+    const getRange: ZoomState["getRange"] = () =>
+      coordinator?.getZoomRange() ?? { start: 0, end: 100 };
+    const setRange: ZoomState["setRange"] = (start, end) => {
       coordinator?.setZoomRange(start, end);
     };
-    const zoomIn: ZoomState['zoomIn'] = (center, factor) => {
-      if (!Number.isFinite(center) || !Number.isFinite(factor) || factor <= 1) return;
+    const zoomIn: ZoomState["zoomIn"] = (center, factor) => {
+      if (!Number.isFinite(center) || !Number.isFinite(factor) || factor <= 1)
+        return;
       const r = coordinator?.getZoomRange();
       if (!r) return;
       const c = clamp(center, 0, 100);
@@ -1073,8 +1233,9 @@ export async function createChartGPU(
       const nextStart = c - ratio * nextSpan;
       coordinator?.setZoomRange(nextStart, nextStart + nextSpan);
     };
-    const zoomOut: ZoomState['zoomOut'] = (center, factor) => {
-      if (!Number.isFinite(center) || !Number.isFinite(factor) || factor <= 1) return;
+    const zoomOut: ZoomState["zoomOut"] = (center, factor) => {
+      if (!Number.isFinite(center) || !Number.isFinite(factor) || factor <= 1)
+        return;
       const r = coordinator?.getZoomRange();
       if (!r) return;
       const c = clamp(center, 0, 100);
@@ -1084,13 +1245,14 @@ export async function createChartGPU(
       const nextStart = c - ratio * nextSpan;
       coordinator?.setZoomRange(nextStart, nextStart + nextSpan);
     };
-    const pan: ZoomState['pan'] = (delta) => {
+    const pan: ZoomState["pan"] = (delta) => {
       if (!Number.isFinite(delta)) return;
       const r = coordinator?.getZoomRange();
       if (!r) return;
       coordinator?.setZoomRange(r.start + delta, r.end + delta);
     };
-    const onChange: ZoomState['onChange'] = (callback) => coordinator?.onZoomRangeChange(callback) ?? (() => {});
+    const onChange: ZoomState["onChange"] = (callback) =>
+      coordinator?.onZoomRangeChange(callback) ?? (() => {});
 
     return { getRange, setRange, zoomIn, zoomOut, pan, onChange };
   };
@@ -1108,10 +1270,14 @@ export async function createChartGPU(
 
     const host = ensureDataZoomSliderHost();
     if (!dataZoomSlider) {
-      dataZoomSlider = createDataZoomSlider(host, createCoordinatorZoomStateLike(), {
-        height: DATA_ZOOM_SLIDER_HEIGHT_CSS_PX,
-        marginTop: 0, // host provides vertical spacing
-      });
+      dataZoomSlider = createDataZoomSlider(
+        host,
+        createCoordinatorZoomStateLike(),
+        {
+          height: DATA_ZOOM_SLIDER_HEIGHT_CSS_PX,
+          marginTop: 0, // host provides vertical spacing
+        },
+      );
     }
     dataZoomSlider.update(resolvedOptions.theme);
   };
@@ -1133,7 +1299,11 @@ export async function createChartGPU(
     if (!coordinator.getZoomRange()) return;
 
     if (!zoomResetButton) {
-      zoomResetButton = createZoomResetButton(container, createCoordinatorZoomStateLike(), resolvedOptions.theme);
+      zoomResetButton = createZoomResetButton(
+        container,
+        createCoordinatorZoomStateLike(),
+        resolvedOptions.theme,
+      );
     } else {
       zoomResetButton.update(resolvedOptions.theme);
     }
@@ -1142,25 +1312,37 @@ export async function createChartGPU(
   // Reusable event payloads to avoid allocations in hot paths (pointer/zoom/dataAppend interactions).
   // Internal mutable versions; cast to readonly when emitting (safe since payload is passed by reference
   // and consumers receive readonly types, preventing external mutation).
-  const crosshairMovePayload = { x: null as number | null, source: undefined as unknown };
+  const crosshairMovePayload = {
+    x: null as number | null,
+    source: undefined as unknown,
+  };
   const zoomRangeChangePayload = {
     start: 0,
     end: 100,
     source: undefined as unknown,
     sourceKind: undefined as ZoomChangeSourceKind | undefined,
   };
-  const dataAppendPayload = { seriesIndex: 0, count: 0, xExtent: { min: 0, max: 0 } };
+  const dataAppendPayload = {
+    seriesIndex: 0,
+    count: 0,
+    xExtent: { min: 0, max: 0 },
+  };
 
   const bindCoordinatorInteractionXChange = (): void => {
     unbindCoordinatorInteractionXChange();
     if (disposed) return;
     if (!coordinator) return;
 
-    unsubscribeCoordinatorInteractionXChange = coordinator.onInteractionXChange((x, source) => {
-      crosshairMovePayload.x = x;
-      crosshairMovePayload.source = source;
-      emit('crosshairMove', crosshairMovePayload as ChartGPUCrosshairMovePayload);
-    });
+    unsubscribeCoordinatorInteractionXChange = coordinator.onInteractionXChange(
+      (x, source) => {
+        crosshairMovePayload.x = x;
+        crosshairMovePayload.source = source;
+        emit(
+          "crosshairMove",
+          crosshairMovePayload as ChartGPUCrosshairMovePayload,
+        );
+      },
+    );
   };
 
   const bindCoordinatorZoomRangeChange = (): void => {
@@ -1168,28 +1350,34 @@ export async function createChartGPU(
     if (disposed) return;
     if (!coordinator) return;
 
-    unsubscribeCoordinatorZoomRangeChange = coordinator.onZoomRangeChange((range, sourceKind) => {
-      // If setZoomRange armed the next change, classify it as 'api'. If a source token was provided,
-      // forward it so chart sync can avoid feedback loops.
-      const wasApiArmed = pendingZoomSourceArmed;
-      const pendingSource = pendingZoomSource;
-      pendingZoomSourceArmed = false;
-      pendingZoomSource = undefined;
+    unsubscribeCoordinatorZoomRangeChange = coordinator.onZoomRangeChange(
+      (range, sourceKind) => {
+        // If setZoomRange armed the next change, classify it as 'api'. If a source token was provided,
+        // forward it so chart sync can avoid feedback loops.
+        const wasApiArmed = pendingZoomSourceArmed;
+        const pendingSource = pendingZoomSource;
+        pendingZoomSourceArmed = false;
+        pendingZoomSource = undefined;
 
-      const source = pendingSource !== undefined ? pendingSource : undefined;
+        const source = pendingSource !== undefined ? pendingSource : undefined;
 
-      // Classify zoom change source:
-      // - Use coordinator's sourceKind if provided (e.g., 'user', 'auto-scroll')
-      // - If no sourceKind but this was armed by setZoomRange, classify as 'api'
-      // - Otherwise, leave sourceKind undefined (not classified)
-      const classifiedSourceKind = sourceKind ?? (wasApiArmed ? 'api' : undefined);
+        // Classify zoom change source:
+        // - Use coordinator's sourceKind if provided (e.g., 'user', 'auto-scroll')
+        // - If no sourceKind but this was armed by setZoomRange, classify as 'api'
+        // - Otherwise, leave sourceKind undefined (not classified)
+        const classifiedSourceKind =
+          sourceKind ?? (wasApiArmed ? "api" : undefined);
 
-      zoomRangeChangePayload.start = range.start;
-      zoomRangeChangePayload.end = range.end;
-      zoomRangeChangePayload.source = source;
-      zoomRangeChangePayload.sourceKind = classifiedSourceKind;
-      emit('zoomRangeChange', zoomRangeChangePayload as ChartGPUZoomRangeChangePayload);
-    });
+        zoomRangeChangePayload.start = range.start;
+        zoomRangeChangePayload.end = range.end;
+        zoomRangeChangePayload.source = source;
+        zoomRangeChangePayload.sourceKind = classifiedSourceKind;
+        emit(
+          "zoomRangeChange",
+          zoomRangeChangePayload as ChartGPUZoomRangeChangePayload,
+        );
+      },
+    );
   };
 
   const recreateCoordinator = (): void => {
@@ -1213,12 +1401,17 @@ export async function createChartGPU(
       onRequestRender: requestRender,
       pipelineCache: context?.pipelineCache,
     };
-    coordinator = createRenderCoordinator(gpuContext, resolvedOptions, coordinatorCallbacks);
+    coordinator = createRenderCoordinator(
+      gpuContext,
+      resolvedOptions,
+      coordinatorCallbacks,
+    );
     coordinatorTargetFormat = gpuContext.preferredFormat;
     bindCoordinatorInteractionXChange();
     bindCoordinatorZoomRangeChange();
 
-    if (prevZoomRange) coordinator.setZoomRange(prevZoomRange.start, prevZoomRange.end);
+    if (prevZoomRange)
+      coordinator.setZoomRange(prevZoomRange.start, prevZoomRange.end);
     syncDataZoomUi();
     syncZoomResetButton();
   };
@@ -1229,9 +1422,16 @@ export async function createChartGPU(
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
 
-    const maxDimension = gpuContext?.device?.limits.maxTextureDimension2D ?? 8192;
-    const width = Math.min(maxDimension, Math.max(1, Math.round(rect.width * dpr)));
-    const height = Math.min(maxDimension, Math.max(1, Math.round(rect.height * dpr)));
+    const maxDimension =
+      gpuContext?.device?.limits.maxTextureDimension2D ?? 8192;
+    const width = Math.min(
+      maxDimension,
+      Math.max(1, Math.round(rect.width * dpr)),
+    );
+    const height = Math.min(
+      maxDimension,
+      Math.max(1, Math.round(rect.height * dpr)),
+    );
 
     const sizeChanged = canvas.width !== width || canvas.height !== height;
     if (sizeChanged) {
@@ -1256,9 +1456,13 @@ export async function createChartGPU(
         canvasContext.configure({
           device,
           format: preferredFormat,
-          alphaMode: 'opaque',
+          alphaMode: "opaque",
         });
-        lastConfigured = { width: canvas.width, height: canvas.height, format: preferredFormat };
+        lastConfigured = {
+          width: canvas.width,
+          height: canvas.height,
+          format: preferredFormat,
+        };
         didConfigure = true;
 
         // Requirement: if the target format changes, recreate coordinator/pipelines.
@@ -1277,24 +1481,32 @@ export async function createChartGPU(
   const resize = (): void => resizeInternal(true);
 
   const getNearestPointFromPointerEvent = (
-    e: PointerEvent
+    e: PointerEvent,
   ): { readonly match: HitTestMatch | null; readonly isInGrid: boolean } => {
     const rect = canvas.getBoundingClientRect();
-    if (!(rect.width > 0) || !(rect.height > 0)) return { match: null, isInGrid: false };
+    if (!(rect.width > 0) || !(rect.height > 0))
+      return { match: null, isInGrid: false };
 
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     const plotLeftCss = resolvedOptions.grid.left;
     const plotTopCss = resolvedOptions.grid.top;
-    const plotWidthCss = rect.width - resolvedOptions.grid.left - resolvedOptions.grid.right;
-    const plotHeightCss = rect.height - resolvedOptions.grid.top - resolvedOptions.grid.bottom;
-    if (!(plotWidthCss > 0) || !(plotHeightCss > 0)) return { match: null, isInGrid: false };
+    const plotWidthCss =
+      rect.width - resolvedOptions.grid.left - resolvedOptions.grid.right;
+    const plotHeightCss =
+      rect.height - resolvedOptions.grid.top - resolvedOptions.grid.bottom;
+    if (!(plotWidthCss > 0) || !(plotHeightCss > 0))
+      return { match: null, isInGrid: false };
 
     const gridX = x - plotLeftCss;
     const gridY = y - plotTopCss;
 
-    const isInGrid = gridX >= 0 && gridX <= plotWidthCss && gridY >= 0 && gridY <= plotHeightCss;
+    const isInGrid =
+      gridX >= 0 &&
+      gridX <= plotWidthCss &&
+      gridY >= 0 &&
+      gridY <= plotHeightCss;
 
     if (!isInGrid) return { match: null, isInGrid: false };
 
@@ -1332,8 +1544,12 @@ export async function createChartGPU(
 
     if (!canReuseScales) {
       // IMPORTANT: grid-local CSS px ranges (0..plotWidth/Height), for interaction hit-testing.
-      const xScale = createLinearScale().domain(xDomain.min, xDomain.max).range(0, plotWidthCss);
-      const yScale = createLinearScale().domain(yDomain.min, yDomain.max).range(plotHeightCss, 0);
+      const xScale = createLinearScale()
+        .domain(xDomain.min, xDomain.max)
+        .range(0, plotWidthCss);
+      const yScale = createLinearScale()
+        .domain(yDomain.min, yDomain.max)
+        .range(plotHeightCss, 0);
       interactionScalesCache = {
         rectWidthCss: rect.width,
         rectHeightCss: rect.height,
@@ -1359,23 +1575,33 @@ export async function createChartGPU(
       // Prefer later series indices (deterministic and mirrors the coordinator tooltip logic).
       for (let i = resolvedOptions.series.length - 1; i >= 0; i--) {
         const s = resolvedOptions.series[i];
-        if (s.type !== 'pie') continue;
+        if (s.type !== "pie") continue;
 
         // Skip invisible series.
         if (s.visible === false) continue;
 
         const pieSeries = s as ResolvedPieSeriesConfig;
-        const center = resolvePieCenterPlotCss(pieSeries.center, plotWidthCss, plotHeightCss);
+        const center = resolvePieCenterPlotCss(
+          pieSeries.center,
+          plotWidthCss,
+          plotHeightCss,
+        );
         const radii = resolvePieRadiiCss(pieSeries.radius, maxRadiusCss);
-        const m = findPieSlice(gridX, gridY, { seriesIndex: i, series: pieSeries }, center, radii);
+        const m = findPieSlice(
+          gridX,
+          gridY,
+          { seriesIndex: i, series: pieSeries },
+          center,
+          radii,
+        );
         if (!m) continue;
 
         const v = m.slice.value;
         return {
-          kind: 'pie' as const,
+          kind: "pie" as const,
           seriesIndex: m.seriesIndex,
           dataIndex: m.dataIndex,
-          sliceValue: typeof v === 'number' && Number.isFinite(v) ? v : 0,
+          sliceValue: typeof v === "number" && Number.isFinite(v) ? v : 0,
         };
       }
       return null;
@@ -1386,26 +1612,51 @@ export async function createChartGPU(
     // Candlestick body hit-testing (grid-local CSS px), prefer later series indices.
     for (let i = resolvedOptions.series.length - 1; i >= 0; i--) {
       const s = resolvedOptions.series[i];
-      if (s?.type !== 'candlestick') continue;
+      if (s?.type !== "candlestick") continue;
 
       // Skip invisible series.
       if (s.visible === false) continue;
 
       const seriesCfg = s as ResolvedCandlestickSeriesConfig;
-      const barWidthRange = computeCandlestickBodyWidthRange(seriesCfg, seriesCfg.data, scales.xScale, plotWidthCss);
-      const m = findCandlestick([seriesCfg], gridX, gridY, scales.xScale, scales.yScale, barWidthRange);
+      const barWidthRange = computeCandlestickBodyWidthRange(
+        seriesCfg,
+        seriesCfg.data,
+        scales.xScale,
+        plotWidthCss,
+      );
+      const m = findCandlestick(
+        [seriesCfg],
+        gridX,
+        gridY,
+        scales.xScale,
+        scales.yScale,
+        barWidthRange,
+      );
       if (!m) continue;
 
       return {
-        match: { kind: 'candlestick', seriesIndex: i, dataIndex: m.dataIndex, point: m.point },
+        match: {
+          kind: "candlestick",
+          seriesIndex: i,
+          dataIndex: m.dataIndex,
+          point: m.point,
+        },
         isInGrid: true,
       };
     }
 
-    const cartesianMatch = findNearestPoint(getRuntimeHitTestSeries(), gridX, gridY, scales.xScale, scales.yScale);
+    const cartesianMatch = findNearestPoint(
+      getRuntimeHitTestSeries(),
+      gridX,
+      gridY,
+      scales.xScale,
+      scales.yScale,
+    );
 
     return {
-      match: cartesianMatch ? ({ kind: 'cartesian', match: cartesianMatch } as const) : null,
+      match: cartesianMatch
+        ? ({ kind: "cartesian", match: cartesianMatch } as const)
+        : null,
       isInGrid: true,
     };
   };
@@ -1415,7 +1666,9 @@ export async function createChartGPU(
       return 0 as ExactFPS;
     }
 
-    const startIndex = (frameTimestampIndex - frameTimestampCount + FRAME_BUFFER_SIZE) % FRAME_BUFFER_SIZE;
+    const startIndex =
+      (frameTimestampIndex - frameTimestampCount + FRAME_BUFFER_SIZE) %
+      FRAME_BUFFER_SIZE;
 
     let totalDelta = 0;
     for (let i = 1; i < frameTimestampCount; i++) {
@@ -1443,7 +1696,9 @@ export async function createChartGPU(
       };
     }
 
-    const startIndex = (frameTimestampIndex - frameTimestampCount + FRAME_BUFFER_SIZE) % FRAME_BUFFER_SIZE;
+    const startIndex =
+      (frameTimestampIndex - frameTimestampCount + FRAME_BUFFER_SIZE) %
+      FRAME_BUFFER_SIZE;
 
     const deltas = new Array<number>(frameTimestampCount - 1);
     let min = Number.POSITIVE_INFINITY;
@@ -1497,8 +1752,12 @@ export async function createChartGPU(
     };
 
     const frameDrops: FrameDropStats =
-      renderMode === 'external'
-        ? { totalDrops: 0, consecutiveDrops: 0, lastDropTimestamp: 0 as Milliseconds }
+      renderMode === "external"
+        ? {
+            totalDrops: 0,
+            consecutiveDrops: 0,
+            lastDropTimestamp: 0 as Milliseconds,
+          }
         : {
             totalDrops: totalDroppedFrames,
             consecutiveDrops: consecutiveDroppedFrames,
@@ -1518,19 +1777,31 @@ export async function createChartGPU(
     };
   };
 
-  const buildPayload = (match: HitTestMatch | null, event: PointerEvent): ChartGPUEventPayload => {
+  const buildPayload = (
+    match: HitTestMatch | null,
+    event: PointerEvent,
+  ): ChartGPUEventPayload => {
     if (!match) {
-      return { seriesIndex: null, dataIndex: null, value: null, seriesName: null, event };
+      return {
+        seriesIndex: null,
+        dataIndex: null,
+        value: null,
+        seriesName: null,
+        event,
+      };
     }
 
-    const seriesIndex = match.kind === 'cartesian' ? match.match.seriesIndex : match.seriesIndex;
-    const dataIndex = match.kind === 'cartesian' ? match.match.dataIndex : match.dataIndex;
+    const seriesIndex =
+      match.kind === "cartesian" ? match.match.seriesIndex : match.seriesIndex;
+    const dataIndex =
+      match.kind === "cartesian" ? match.match.dataIndex : match.dataIndex;
 
     const series = resolvedOptions.series[seriesIndex];
     const seriesNameRaw = series?.name ?? null;
-    const seriesName = seriesNameRaw && seriesNameRaw.trim().length > 0 ? seriesNameRaw : null;
+    const seriesName =
+      seriesNameRaw && seriesNameRaw.trim().length > 0 ? seriesNameRaw : null;
 
-    if (match.kind === 'pie') {
+    if (match.kind === "pie") {
       // Pie series are non-cartesian; expose slice value in y so consumers can read a numeric.
       return {
         seriesIndex,
@@ -1541,7 +1812,7 @@ export async function createChartGPU(
       };
     }
 
-    if (match.kind === 'candlestick') {
+    if (match.kind === "candlestick") {
       const timestamp = getOHLCTimestamp(match.point);
       const close = getOHLCClose(match.point);
       return {
@@ -1570,10 +1841,11 @@ export async function createChartGPU(
       | ChartGPUCrosshairMovePayload
       | ChartGPUZoomRangeChangePayload
       | ChartGPUDeviceLostPayload
-      | ChartGPUDataAppendPayload
+      | ChartGPUDataAppendPayload,
   ): void => {
     if (disposed) return;
-    for (const cb of listeners[eventName]) (cb as (p: typeof payload) => void)(payload);
+    for (const cb of listeners[eventName])
+      (cb as (p: typeof payload) => void)(payload);
   };
 
   const setHovered = (next: HitTestMatch | null, event: PointerEvent): void => {
@@ -1583,27 +1855,32 @@ export async function createChartGPU(
     if (prev === null && next === null) return;
 
     if (prev === null && next !== null) {
-      emit('mouseover', buildPayload(next, event));
+      emit("mouseover", buildPayload(next, event));
       return;
     }
 
     if (prev !== null && next === null) {
-      emit('mouseout', buildPayload(prev, event));
+      emit("mouseout", buildPayload(prev, event));
       return;
     }
 
     if (prev === null || next === null) return;
 
-    const prevSeriesIndex = prev.kind === 'cartesian' ? prev.match.seriesIndex : prev.seriesIndex;
-    const prevDataIndex = prev.kind === 'cartesian' ? prev.match.dataIndex : prev.dataIndex;
-    const nextSeriesIndex = next.kind === 'cartesian' ? next.match.seriesIndex : next.seriesIndex;
-    const nextDataIndex = next.kind === 'cartesian' ? next.match.dataIndex : next.dataIndex;
+    const prevSeriesIndex =
+      prev.kind === "cartesian" ? prev.match.seriesIndex : prev.seriesIndex;
+    const prevDataIndex =
+      prev.kind === "cartesian" ? prev.match.dataIndex : prev.dataIndex;
+    const nextSeriesIndex =
+      next.kind === "cartesian" ? next.match.seriesIndex : next.seriesIndex;
+    const nextDataIndex =
+      next.kind === "cartesian" ? next.match.dataIndex : next.dataIndex;
 
-    const samePoint = prevSeriesIndex === nextSeriesIndex && prevDataIndex === nextDataIndex;
+    const samePoint =
+      prevSeriesIndex === nextSeriesIndex && prevDataIndex === nextDataIndex;
     if (samePoint) return;
 
-    emit('mouseout', buildPayload(prev, event));
-    emit('mouseover', buildPayload(next, event));
+    emit("mouseout", buildPayload(prev, event));
+    emit("mouseover", buildPayload(next, event));
   };
 
   const clearTapCandidateIfMatches = (e: PointerEvent): void => {
@@ -1640,7 +1917,12 @@ export async function createChartGPU(
 
   const onLostPointerCapture = (e: PointerEvent): void => {
     if (disposed) return;
-    if (!hasHoverListeners() && !tapCandidate && suppressNextLostPointerCaptureId !== e.pointerId) return;
+    if (
+      !hasHoverListeners() &&
+      !tapCandidate &&
+      suppressNextLostPointerCaptureId !== e.pointerId
+    )
+      return;
     if (suppressNextLostPointerCaptureId === e.pointerId) {
       suppressNextLostPointerCaptureId = null;
       return;
@@ -1655,7 +1937,7 @@ export async function createChartGPU(
     if (!e.isPrimary) return;
 
     // For mouse, only allow left button.
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
 
     tapCandidate = {
       pointerId: e.pointerId,
@@ -1700,15 +1982,17 @@ export async function createChartGPU(
     if (!isTap) return;
 
     const { match } = getNearestPointFromPointerEvent(e);
-    emit('click', buildPayload(match, e));
+    emit("click", buildPayload(match, e));
   };
 
-  canvas.addEventListener('pointermove', onPointerMove, { passive: true });
-  canvas.addEventListener('pointerleave', onPointerLeave, { passive: true });
-  canvas.addEventListener('pointercancel', onPointerCancel, { passive: true });
-  canvas.addEventListener('lostpointercapture', onLostPointerCapture, { passive: true });
-  canvas.addEventListener('pointerdown', onPointerDown, { passive: true });
-  canvas.addEventListener('pointerup', onPointerUp, { passive: true });
+  canvas.addEventListener("pointermove", onPointerMove, { passive: true });
+  canvas.addEventListener("pointerleave", onPointerLeave, { passive: true });
+  canvas.addEventListener("pointercancel", onPointerCancel, { passive: true });
+  canvas.addEventListener("lostpointercapture", onLostPointerCapture, {
+    passive: true,
+  });
+  canvas.addEventListener("pointerdown", onPointerDown, { passive: true });
+  canvas.addEventListener("pointerup", onPointerUp, { passive: true });
 
   const dispose = (): void => {
     if (disposed) return;
@@ -1733,12 +2017,12 @@ export async function createChartGPU(
       pendingZoomSourceArmed = false;
       pendingZoomSource = undefined;
 
-      canvas.removeEventListener('pointermove', onPointerMove);
-      canvas.removeEventListener('pointerleave', onPointerLeave);
-      canvas.removeEventListener('pointercancel', onPointerCancel);
-      canvas.removeEventListener('lostpointercapture', onLostPointerCapture);
-      canvas.removeEventListener('pointerdown', onPointerDown);
-      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerleave", onPointerLeave);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
+      canvas.removeEventListener("lostpointercapture", onLostPointerCapture);
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointerup", onPointerUp);
 
       listeners.click.clear();
       listeners.mouseover.clear();
@@ -1772,7 +2056,10 @@ export async function createChartGPU(
       resolvedOptions = resolveOptionsForChart(nextOptions);
       coordinator?.setOptions(resolvedOptions);
       initRuntimeHitTestStoreFromResolvedOptions();
-      cachedGlobalBounds = computeGlobalBounds(resolvedOptions.series, runtimeRawBoundsByIndex);
+      cachedGlobalBounds = computeGlobalBounds(
+        resolvedOptions.series,
+        runtimeRawBoundsByIndex,
+      );
       interactionScalesCache = null;
       syncDataZoomUi();
       syncZoomResetButton();
@@ -1783,15 +2070,16 @@ export async function createChartGPU(
     appendData(seriesIndex, newPoints) {
       if (disposed) return;
       if (!Number.isFinite(seriesIndex)) return;
-      if (seriesIndex < 0 || seriesIndex >= resolvedOptions.series.length) return;
+      if (seriesIndex < 0 || seriesIndex >= resolvedOptions.series.length)
+        return;
 
       const s = resolvedOptions.series[seriesIndex]!;
-      if (s.type === 'pie') {
+      if (s.type === "pie") {
         // Pie series are non-cartesian and currently not supported by streaming append.
         if (!warnedPieAppendSeries.has(seriesIndex)) {
           warnedPieAppendSeries.add(seriesIndex);
           console.warn(
-            `ChartGPU.appendData(${seriesIndex}, ...): pie series are not supported by streaming append. Use setOption(...) to replace pie data.`
+            `ChartGPU.appendData(${seriesIndex}, ...): pie series are not supported by streaming append. Use setOption(...) to replace pie data.`,
           );
         }
         return;
@@ -1799,8 +2087,8 @@ export async function createChartGPU(
 
       // Early validation: compute append count in a format-aware way.
       // Disambiguate by series type (avoid heuristics on the data payload).
-      let pointCount: number;
-      if (s.type === 'candlestick') {
+      let pointCount = 0;
+      if (s.type === "candlestick") {
         if (!Array.isArray(newPoints)) return;
         pointCount = newPoints.length;
       } else {
@@ -1816,10 +2104,12 @@ export async function createChartGPU(
       let appendXMin = Number.POSITIVE_INFINITY;
       let appendXMax = Number.NEGATIVE_INFINITY;
 
-      if (s.type === 'candlestick') {
+      if (s.type === "candlestick") {
         // Handle candlestick series with OHLC data points.
         const existing = runtimeRawDataByIndex[seriesIndex];
-        const owned = (Array.isArray(existing) ? existing : []) as OHLCDataPoint[];
+        const owned = (
+          Array.isArray(existing) ? existing : []
+        ) as OHLCDataPoint[];
         const ohlcPoints = newPoints as OHLCDataPoint[];
 
         // Track xExtent during push if listeners present
@@ -1838,7 +2128,7 @@ export async function createChartGPU(
 
         runtimeRawBoundsByIndex[seriesIndex] = extendBoundsWithOHLCDataPoints(
           runtimeRawBoundsByIndex[seriesIndex],
-          ohlcPoints
+          ohlcPoints,
         );
       } else {
         // Handle other cartesian series (line, area, bar, scatter) with columnar append.
@@ -1851,14 +2141,14 @@ export async function createChartGPU(
         // 1. extendBoundsWithCartesianData - for bounds updates
         // 2. appendData method (here) - for columnar store appends (also computes xExtent inline)
         const isXYArrays =
-          typeof appendData === 'object' &&
+          typeof appendData === "object" &&
           appendData !== null &&
           !Array.isArray(appendData) &&
-          'x' in appendData &&
-          'y' in appendData;
+          "x" in appendData &&
+          "y" in appendData;
 
         const isInterleaved =
-          typeof appendData === 'object' &&
+          typeof appendData === "object" &&
           appendData !== null &&
           !Array.isArray(appendData) &&
           ArrayBuffer.isView(appendData);
@@ -1869,7 +2159,11 @@ export async function createChartGPU(
 
         if (isXYArrays) {
           // Fast path for XYArraysData: direct array access without type checks
-          const xyData = appendData as { x: ArrayLike<number>; y: ArrayLike<number>; size?: ArrayLike<number> };
+          const xyData = appendData as {
+            x: ArrayLike<number>;
+            y: ArrayLike<number>;
+            size?: ArrayLike<number>;
+          };
 
           // Append x, y values (and track xExtent if listeners present)
           for (let i = 0; i < pointCount; i++) {
@@ -1939,13 +2233,17 @@ export async function createChartGPU(
 
         runtimeRawBoundsByIndex[seriesIndex] = extendBoundsWithCartesianData(
           runtimeRawBoundsByIndex[seriesIndex],
-          appendData
+          appendData,
         );
       }
 
-      cachedGlobalBounds = computeGlobalBounds(resolvedOptions.series, runtimeRawBoundsByIndex);
+      cachedGlobalBounds = computeGlobalBounds(
+        resolvedOptions.series,
+        runtimeRawBoundsByIndex,
+      );
 
       runtimeHitTestSeriesCache = null;
+      runtimeHitTestSeriesVersion++;
       interactionScalesCache = null;
 
       // Ensure a render is scheduled (coalesced) like setOption does.
@@ -1965,7 +2263,7 @@ export async function createChartGPU(
         dataAppendPayload.count = pointCount;
         dataAppendPayload.xExtent.min = appendXMin;
         dataAppendPayload.xExtent.max = appendXMax;
-        emit('dataAppend', dataAppendPayload as ChartGPUDataAppendPayload);
+        emit("dataAppend", dataAppendPayload as ChartGPUDataAppendPayload);
       }
     },
     renderFrame() {
@@ -1973,9 +2271,9 @@ export async function createChartGPU(
       if (deviceIsLost) return false;
 
       // Warn if called in auto mode
-      if (renderMode === 'auto') {
+      if (renderMode === "auto") {
         console.warn(
-          'renderFrame() called in auto mode - this is a no-op. Set renderMode to "external" to use manual rendering.'
+          'renderFrame() called in auto mode - this is a no-op. Set renderMode to "external" to use manual rendering.',
         );
         return false;
       }
@@ -1997,15 +2295,17 @@ export async function createChartGPU(
     getRenderMode: () => renderMode,
     setRenderMode(mode: RenderMode) {
       if (disposed) return;
-      if (mode !== 'auto' && mode !== 'external') {
-        console.warn(`setRenderMode(): invalid mode '${String(mode)}', ignoring.`);
+      if (mode !== "auto" && mode !== "external") {
+        console.warn(
+          `setRenderMode(): invalid mode '${String(mode)}', ignoring.`,
+        );
         return;
       }
       if (renderMode === mode) return;
 
       resetPerfMetricsInternal();
       renderMode = mode;
-      if (mode === 'external') cancelPendingFrame();
+      if (mode === "external") cancelPendingFrame();
       else if (isDirty) requestRender();
     },
     resize,
@@ -2014,12 +2314,13 @@ export async function createChartGPU(
       if (disposed) return;
       listeners[eventName].add(callback as AnyChartGPUEventCallback);
       // Update hot-path flag for dataAppend event
-      if (eventName === 'dataAppend') hasDataAppendListeners = true;
+      if (eventName === "dataAppend") hasDataAppendListeners = true;
     },
     off(eventName, callback) {
       listeners[eventName].delete(callback as AnyChartGPUEventCallback);
       // Update hot-path flag for dataAppend event
-      if (eventName === 'dataAppend') hasDataAppendListeners = listeners.dataAppend.size > 0;
+      if (eventName === "dataAppend")
+        hasDataAppendListeners = listeners.dataAppend.size > 0;
     },
     getInteractionX() {
       if (disposed) return null;
@@ -2058,7 +2359,10 @@ export async function createChartGPU(
 
       // If range did not change, clear the pending token to avoid incorrectly tagging the next user zoom.
       const after = coordinator.getZoomRange();
-      if (!after || (after.start === before.start && after.end === before.end)) {
+      if (
+        !after ||
+        (after.start === before.start && after.end === before.end)
+      ) {
         pendingZoomSourceArmed = false;
         pendingZoomSource = undefined;
       }
@@ -2071,7 +2375,9 @@ export async function createChartGPU(
       if (disposed) return null;
       return {
         gpuTimingSupported: false, // Not yet implemented for main thread
-        highResTimerSupported: typeof performance !== 'undefined' && typeof performance.now === 'function',
+        highResTimerSupported:
+          typeof performance !== "undefined" &&
+          typeof performance.now === "function",
         performanceMetricsSupported: true,
       };
     },
@@ -2101,8 +2407,10 @@ export async function createChartGPU(
 
       const plotLeftCss = resolvedOptions.grid.left;
       const plotTopCss = resolvedOptions.grid.top;
-      const plotWidthCss = rect.width - resolvedOptions.grid.left - resolvedOptions.grid.right;
-      const plotHeightCss = rect.height - resolvedOptions.grid.top - resolvedOptions.grid.bottom;
+      const plotWidthCss =
+        rect.width - resolvedOptions.grid.left - resolvedOptions.grid.right;
+      const plotHeightCss =
+        rect.height - resolvedOptions.grid.top - resolvedOptions.grid.bottom;
 
       const gridX = canvasX - plotLeftCss;
       const gridY = canvasY - plotTopCss;
@@ -2119,7 +2427,11 @@ export async function createChartGPU(
         };
       }
 
-      const isInGrid = gridX >= 0 && gridX <= plotWidthCss && gridY >= 0 && gridY <= plotHeightCss;
+      const isInGrid =
+        gridX >= 0 &&
+        gridX <= plotWidthCss &&
+        gridY >= 0 &&
+        gridY <= plotHeightCss;
 
       // If outside grid, return early
       if (!isInGrid) {
@@ -2166,8 +2478,12 @@ export async function createChartGPU(
         interactionScalesCache.yDomainMax === yDomain.max;
 
       if (!canReuseScales) {
-        const xScale = createLinearScale().domain(xDomain.min, xDomain.max).range(0, plotWidthCss);
-        const yScale = createLinearScale().domain(yDomain.min, yDomain.max).range(plotHeightCss, 0);
+        const xScale = createLinearScale()
+          .domain(xDomain.min, xDomain.max)
+          .range(0, plotWidthCss);
+        const yScale = createLinearScale()
+          .domain(yDomain.min, yDomain.max)
+          .range(plotHeightCss, 0);
         interactionScalesCache = {
           rectWidthCss: rect.width,
           rectHeightCss: rect.height,
@@ -2191,23 +2507,33 @@ export async function createChartGPU(
 
         for (let i = resolvedOptions.series.length - 1; i >= 0; i--) {
           const s = resolvedOptions.series[i];
-          if (s.type !== 'pie') continue;
+          if (s.type !== "pie") continue;
 
           // Skip invisible series
           if (s.visible === false) continue;
 
           const pieSeries = s as ResolvedPieSeriesConfig;
-          const center = resolvePieCenterPlotCss(pieSeries.center, plotWidthCss, plotHeightCss);
+          const center = resolvePieCenterPlotCss(
+            pieSeries.center,
+            plotWidthCss,
+            plotHeightCss,
+          );
           const radii = resolvePieRadiiCss(pieSeries.radius, maxRadiusCss);
-          const m = findPieSlice(gridX, gridY, { seriesIndex: i, series: pieSeries }, center, radii);
+          const m = findPieSlice(
+            gridX,
+            gridY,
+            { seriesIndex: i, series: pieSeries },
+            center,
+            radii,
+          );
           if (!m) continue;
 
           const v = m.slice.value;
           return {
-            kind: 'pie' as const,
+            kind: "pie" as const,
             seriesIndex: m.seriesIndex,
             dataIndex: m.dataIndex,
-            sliceValue: typeof v === 'number' && Number.isFinite(v) ? v : 0,
+            sliceValue: typeof v === "number" && Number.isFinite(v) ? v : 0,
           };
         }
         return null;
@@ -2221,7 +2547,7 @@ export async function createChartGPU(
           gridX,
           gridY,
           match: {
-            kind: 'pie',
+            kind: "pie",
             seriesIndex: pieMatch.seriesIndex,
             dataIndex: pieMatch.dataIndex,
             value: [0, pieMatch.sliceValue],
@@ -2232,14 +2558,26 @@ export async function createChartGPU(
       // Candlestick body hit-testing
       for (let i = resolvedOptions.series.length - 1; i >= 0; i--) {
         const s = resolvedOptions.series[i];
-        if (s?.type !== 'candlestick') continue;
+        if (s?.type !== "candlestick") continue;
 
         // Skip invisible series
         if (s.visible === false) continue;
 
         const seriesCfg = s as ResolvedCandlestickSeriesConfig;
-        const barWidthRange = computeCandlestickBodyWidthRange(seriesCfg, seriesCfg.data, scales.xScale, plotWidthCss);
-        const m = findCandlestick([seriesCfg], gridX, gridY, scales.xScale, scales.yScale, barWidthRange);
+        const barWidthRange = computeCandlestickBodyWidthRange(
+          seriesCfg,
+          seriesCfg.data,
+          scales.xScale,
+          plotWidthCss,
+        );
+        const m = findCandlestick(
+          [seriesCfg],
+          gridX,
+          gridY,
+          scales.xScale,
+          scales.yScale,
+          barWidthRange,
+        );
         if (!m) continue;
 
         const timestamp = getOHLCTimestamp(m.point);
@@ -2252,7 +2590,7 @@ export async function createChartGPU(
           gridX,
           gridY,
           match: {
-            kind: 'candlestick',
+            kind: "candlestick",
             seriesIndex: i,
             dataIndex: m.dataIndex,
             value: [timestamp, close],
@@ -2261,7 +2599,13 @@ export async function createChartGPU(
       }
 
       // Cartesian nearest-point hit-testing
-      const cartesianMatch = findNearestPoint(getRuntimeHitTestSeries(), gridX, gridY, scales.xScale, scales.yScale);
+      const cartesianMatch = findNearestPoint(
+        getRuntimeHitTestSeries(),
+        gridX,
+        gridY,
+        scales.xScale,
+        scales.yScale,
+      );
 
       if (cartesianMatch) {
         const { x, y } = getPointXY(cartesianMatch.point);
@@ -2272,7 +2616,7 @@ export async function createChartGPU(
           gridX,
           gridY,
           match: {
-            kind: 'cartesian',
+            kind: "cartesian",
             seriesIndex: cartesianMatch.seriesIndex,
             dataIndex: cartesianMatch.dataIndex,
             value: [x, y],
@@ -2299,10 +2643,13 @@ export async function createChartGPU(
     // Try to create GPU context; wrap errors with detailed WebGPU unavailability message
     try {
       // Use shared device/adapter if provided in context parameter
-      const gpuContextOptions = context ? { device: context.device, adapter: context.adapter } : undefined;
+      const gpuContextOptions = context
+        ? { device: context.device, adapter: context.adapter }
+        : undefined;
       gpuContext = await GPUContext.create(canvas, gpuContextOptions);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(
         `ChartGPU: WebGPU is not available.\n` +
           `Reason: ${errorMessage}\n` +
@@ -2311,23 +2658,23 @@ export async function createChartGPU(
           `  - MDN WebGPU API: https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API\n` +
           `  - Browser compatibility: https://caniuse.com/webgpu\n` +
           `  - WebGPU specification: https://www.w3.org/TR/webgpu/\n` +
-          `  - Check your system: https://webgpureport.org/`
+          `  - Check your system: https://webgpureport.org/`,
       );
     }
 
     gpuContext.device?.lost.then((info) => {
       deviceIsLost = true;
       if (disposed) return;
-      if (info.reason !== 'destroyed') {
-        console.warn('WebGPU device lost:', info);
+      if (info.reason !== "destroyed") {
+        console.warn("WebGPU device lost:", info);
       }
 
       // AC-6 (CGPU-SHARED-DEVICE): Emit deviceLost event only for shared (injected) devices.
       // - Shared devices: Application manages device lifecycle; emit event for recovery coordination.
       // - Owned devices: ChartGPU manages device internally; no event needed (dispose handles cleanup).
       // Note: 'destroyed' reason indicates intentional destruction, not a loss event.
-      if (isSharedDevice && info.reason !== 'destroyed') {
-        emit('deviceLost', { reason: info.reason, message: info.message });
+      if (isSharedDevice && info.reason !== "destroyed") {
+        emit("deviceLost", { reason: info.reason, message: info.message });
       }
       // Requirement: device loss routes through the same dispose path regardless of ownership.
       dispose();
@@ -2344,7 +2691,7 @@ export async function createChartGPU(
     syncZoomResetButton();
 
     // Kick an initial render.
-    if (renderMode === 'auto') requestRender();
+    if (renderMode === "auto") requestRender();
 
     activeInstances.add(instance);
     ensureUnloadListeners();

@@ -1,10 +1,17 @@
-import lineWgsl from '../shaders/line.wgsl?raw';
-import type { ResolvedLineSeriesConfig } from '../config/OptionResolver';
-import type { LinearScale } from '../utils/scales';
-import { parseCssColorToRgba01 } from '../utils/colors';
-import { createRenderPipeline, createUniformBuffer, writeUniformBuffer } from './rendererUtils';
-import { getPointCount, computeRawBoundsFromCartesianData } from '../data/cartesianData';
-import type { PipelineCache } from '../core/PipelineCache';
+import lineWgsl from "../shaders/line.wgsl?raw";
+import type { ResolvedLineSeriesConfig } from "../config/OptionResolver";
+import type { LinearScale } from "../utils/scales";
+import { parseCssColorToRgba01 } from "../utils/colors";
+import {
+  createRenderPipeline,
+  createUniformBuffer,
+  writeUniformBuffer,
+} from "./rendererUtils";
+import {
+  getPointCount,
+  computeRawBoundsFromCartesianData,
+} from "../data/cartesianData";
+import type { PipelineCache } from "../core/PipelineCache";
 
 export interface LineRenderer {
   prepare(
@@ -15,7 +22,7 @@ export interface LineRenderer {
     xOffset?: number,
     devicePixelRatio?: number,
     canvasWidthDevicePx?: number,
-    canvasHeightDevicePx?: number
+    canvasHeightDevicePx?: number,
   ): void;
   render(passEncoder: GPURenderPassEncoder): void;
   dispose(): void;
@@ -45,22 +52,29 @@ export interface LineRendererOptions {
 
 type Rgba = readonly [r: number, g: number, b: number, a: number];
 
-const DEFAULT_TARGET_FORMAT: GPUTextureFormat = 'bgra8unorm';
+const DEFAULT_TARGET_FORMAT: GPUTextureFormat = "bgra8unorm";
 const DEFAULT_LINE_WIDTH_CSS_PX = 2;
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
-const parseSeriesColorToRgba01 = (color: string): Rgba => parseCssColorToRgba01(color) ?? ([0, 0, 0, 1] as const);
+const parseSeriesColorToRgba01 = (color: string): Rgba =>
+  parseCssColorToRgba01(color) ?? ([0, 0, 0, 1] as const);
 
 const computeClipAffineFromScale = (
   scale: LinearScale,
   v0: number,
-  v1: number
+  v1: number,
 ): { readonly a: number; readonly b: number } => {
   const p0 = scale.scale(v0);
   const p1 = scale.scale(v1);
 
   // If the domain sample is degenerate or non-finite, fall back to constant output.
-  if (!Number.isFinite(v0) || !Number.isFinite(v1) || v0 === v1 || !Number.isFinite(p0) || !Number.isFinite(p1)) {
+  if (
+    !Number.isFinite(v0) ||
+    !Number.isFinite(v1) ||
+    v0 === v1 ||
+    !Number.isFinite(p0) ||
+    !Number.isFinite(p1)
+  ) {
     return { a: 0, b: Number.isFinite(p0) ? p0 : 0 };
   }
 
@@ -69,7 +83,13 @@ const computeClipAffineFromScale = (
   return { a: Number.isFinite(a) ? a : 0, b: Number.isFinite(b) ? b : 0 };
 };
 
-const writeTransformMat4F32 = (out: Float32Array, ax: number, bx: number, ay: number, by: number): void => {
+const writeTransformMat4F32 = (
+  out: Float32Array,
+  ax: number,
+  bx: number,
+  ay: number,
+  by: number,
+): void => {
   // Column-major mat4x4 for: clip = M * vec4(x, y, 0, 1)
   out[0] = ax;
   out[1] = 0;
@@ -89,25 +109,46 @@ const writeTransformMat4F32 = (out: Float32Array, ax: number, bx: number, ay: nu
   out[15] = 1; // col3
 };
 
-export function createLineRenderer(device: GPUDevice, options?: LineRendererOptions): LineRenderer {
+export function createLineRenderer(
+  device: GPUDevice,
+  options?: LineRendererOptions,
+): LineRenderer {
   let disposed = false;
   const targetFormat = options?.targetFormat ?? DEFAULT_TARGET_FORMAT;
   // Be resilient: coerce invalid values to 1 (no MSAA).
   const sampleCountRaw = options?.sampleCount ?? 1;
-  const sampleCount = Number.isFinite(sampleCountRaw) ? Math.max(1, Math.floor(sampleCountRaw)) : 1;
+  const sampleCount = Number.isFinite(sampleCountRaw)
+    ? Math.max(1, Math.floor(sampleCountRaw))
+    : 1;
   const pipelineCache = options?.pipelineCache;
 
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "read-only-storage" },
+      },
     ],
   });
 
   // VS uniforms: mat4x4 (64) + canvasSize (8) + dpr (4) + lineWidthCssPx (4) = 80 bytes.
-  const vsUniformBuffer = createUniformBuffer(device, 80, { label: 'lineRenderer/vsUniforms' });
-  const fsUniformBuffer = createUniformBuffer(device, 16, { label: 'lineRenderer/fsUniforms' });
+  const vsUniformBuffer = createUniformBuffer(device, 80, {
+    label: "lineRenderer/vsUniforms",
+  });
+  const fsUniformBuffer = createUniformBuffer(device, 16, {
+    label: "lineRenderer/fsUniforms",
+  });
 
   // Reused CPU-side staging for uniform writes (avoid per-frame allocations).
   const vsUniformScratchBuffer = new ArrayBuffer(80);
@@ -120,36 +161,44 @@ export function createLineRenderer(device: GPUDevice, options?: LineRendererOpti
   const pipeline = createRenderPipeline(
     device,
     {
-      label: 'lineRenderer/pipeline',
+      label: "lineRenderer/pipeline",
       bindGroupLayouts: [bindGroupLayout],
       vertex: {
         code: lineWgsl,
-        label: 'line.wgsl',
+        label: "line.wgsl",
         buffers: [], // No vertex buffers — points are read from storage buffer.
       },
       fragment: {
         code: lineWgsl,
-        label: 'line.wgsl',
+        label: "line.wgsl",
         formats: targetFormat,
         // Enable standard alpha blending so per-series `lineStyle.opacity` and AA transparency work.
         blend: {
-          color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-          alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+          color: {
+            operation: "add",
+            srcFactor: "src-alpha",
+            dstFactor: "one-minus-src-alpha",
+          },
+          alpha: {
+            operation: "add",
+            srcFactor: "one",
+            dstFactor: "one-minus-src-alpha",
+          },
         },
       },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      primitive: { topology: "triangle-list", cullMode: "none" },
       multisample: { count: sampleCount },
     },
-    pipelineCache
+    pipelineCache,
   );
 
   let currentPointCount = 0;
 
   const assertNotDisposed = (): void => {
-    if (disposed) throw new Error('LineRenderer is disposed.');
+    if (disposed) throw new Error("LineRenderer is disposed.");
   };
 
-  const prepare: LineRenderer['prepare'] = (
+  const prepare: LineRenderer["prepare"] = (
     seriesConfig,
     dataBuffer,
     xScale,
@@ -157,14 +206,19 @@ export function createLineRenderer(device: GPUDevice, options?: LineRendererOpti
     xOffset = 0,
     devicePixelRatio = 1,
     canvasWidthDevicePx = 1,
-    canvasHeightDevicePx = 1
+    canvasHeightDevicePx = 1,
   ) => {
     assertNotDisposed();
 
     currentPointCount = getPointCount(seriesConfig.data);
 
     const bounds = computeRawBoundsFromCartesianData(seriesConfig.data);
-    const { xMin, xMax, yMin, yMax } = bounds ?? { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
+    const { xMin, xMax, yMin, yMax } = bounds ?? {
+      xMin: 0,
+      xMax: 1,
+      yMin: 0,
+      yMax: 1,
+    };
     const { a: ax, b: bx } = computeClipAffineFromScale(xScale, xMin, xMax);
     const { a: ay, b: by } = computeClipAffineFromScale(yScale, yMin, yMax);
 
@@ -175,11 +229,21 @@ export function createLineRenderer(device: GPUDevice, options?: LineRendererOpti
 
     // Write VS uniforms: mat4x4 (16 floats) + canvasSize (2 floats) + dpr (1 float) + lineWidth (1 float).
     writeTransformMat4F32(vsUniformScratchF32, ax, bxAdjusted, ay, by);
-    const dpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
-    const canvasW = Number.isFinite(canvasWidthDevicePx) && canvasWidthDevicePx > 0 ? canvasWidthDevicePx : 1;
-    const canvasH = Number.isFinite(canvasHeightDevicePx) && canvasHeightDevicePx > 0 ? canvasHeightDevicePx : 1;
+    const dpr =
+      Number.isFinite(devicePixelRatio) && devicePixelRatio > 0
+        ? devicePixelRatio
+        : 1;
+    const canvasW =
+      Number.isFinite(canvasWidthDevicePx) && canvasWidthDevicePx > 0
+        ? canvasWidthDevicePx
+        : 1;
+    const canvasH =
+      Number.isFinite(canvasHeightDevicePx) && canvasHeightDevicePx > 0
+        ? canvasHeightDevicePx
+        : 1;
     const lineWidthCss =
-      Number.isFinite(seriesConfig.lineStyle.width) && seriesConfig.lineStyle.width > 0
+      Number.isFinite(seriesConfig.lineStyle.width) &&
+      seriesConfig.lineStyle.width > 0
         ? seriesConfig.lineStyle.width
         : DEFAULT_LINE_WIDTH_CSS_PX;
 
@@ -208,7 +272,7 @@ export function createLineRenderer(device: GPUDevice, options?: LineRendererOpti
     });
   };
 
-  const render: LineRenderer['render'] = (passEncoder) => {
+  const render: LineRenderer["render"] = (passEncoder) => {
     assertNotDisposed();
     // Need at least 2 points to form 1 segment.
     if (!currentBindGroup || currentPointCount < 2) return;
@@ -219,7 +283,7 @@ export function createLineRenderer(device: GPUDevice, options?: LineRendererOpti
     passEncoder.draw(6, currentPointCount - 1);
   };
 
-  const dispose: LineRenderer['dispose'] = () => {
+  const dispose: LineRenderer["dispose"] = () => {
     if (disposed) return;
     disposed = true;
 

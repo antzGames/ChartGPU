@@ -7,7 +7,12 @@
  * @module dataPointUtils
  */
 
-import type { DataPoint, DataPointTuple, OHLCDataPoint, OHLCDataPointTuple } from '../../../config/types';
+import type {
+  DataPoint,
+  DataPointTuple,
+  OHLCDataPoint,
+  OHLCDataPointTuple,
+} from "../../../config/types";
 
 /**
  * Validates that a number is finite, returning the number or null.
@@ -16,7 +21,7 @@ import type { DataPoint, DataPointTuple, OHLCDataPoint, OHLCDataPointTuple } fro
  * @returns The number if finite, otherwise null
  */
 export const finiteOrNull = (v: number | null | undefined): number | null =>
-  typeof v === 'number' && Number.isFinite(v) ? v : null;
+  typeof v === "number" && Number.isFinite(v) ? v : null;
 
 /**
  * Validates that a number is finite, returning the number or undefined.
@@ -25,7 +30,7 @@ export const finiteOrNull = (v: number | null | undefined): number | null =>
  * @returns The number if finite, otherwise undefined
  */
 export const finiteOrUndefined = (v: number | undefined): number | undefined =>
-  typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+  typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
 /**
  * Compile-time exhaustiveness check for error handling.
@@ -45,7 +50,8 @@ export const assertUnreachable = (value: never): never => {
  * @param p - The data point to check
  * @returns True if the point is a tuple, false if it's an object
  */
-export const isTupleDataPoint = (p: DataPoint): p is DataPointTuple => Array.isArray(p);
+export const isTupleDataPoint = (p: DataPoint): p is DataPointTuple =>
+  Array.isArray(p);
 
 /**
  * Extracts x,y coordinates from either tuple or object point format.
@@ -53,7 +59,9 @@ export const isTupleDataPoint = (p: DataPoint): p is DataPointTuple => Array.isA
  * @param p - The data point (either tuple or object format)
  * @returns Object with x and y properties
  */
-export const getPointXY = (p: DataPoint): { readonly x: number; readonly y: number } => {
+export const getPointXY = (
+  p: DataPoint,
+): { readonly x: number; readonly y: number } => {
   if (isTupleDataPoint(p)) return { x: p[0], y: p[1] };
   return { x: p.x, y: p.y };
 };
@@ -64,4 +72,27 @@ export const getPointXY = (p: DataPoint): { readonly x: number; readonly y: numb
  * @param p - The OHLC data point to check
  * @returns True if the point is a tuple, false if it's an object
  */
-export const isTupleOHLCDataPoint = (p: OHLCDataPoint): p is OHLCDataPointTuple => Array.isArray(p);
+export const isTupleOHLCDataPoint = (
+  p: OHLCDataPoint,
+): p is OHLCDataPointTuple => Array.isArray(p);
+
+/**
+ * Type guard: checks if a data point is in tuple form `[x, y]` (for individual points).
+ *
+ * @param p - The point to check
+ * @returns True if the point is a tuple array
+ */
+export const isTuplePoint = (p: unknown): p is readonly [number, number] =>
+  Array.isArray(p);
+
+/**
+ * Type guard: checks if entire data array is in tuple format.
+ * Only checks the first element for performance.
+ *
+ * @param data - Array of data points to check
+ * @returns True if first element (and therefore likely all) is a tuple
+ */
+export const isTupleDataArray = (
+  data: ReadonlyArray<DataPoint>,
+): data is ReadonlyArray<DataPointTuple> =>
+  data.length > 0 && isTupleDataPoint(data[0]);

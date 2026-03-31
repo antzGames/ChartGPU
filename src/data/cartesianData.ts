@@ -12,12 +12,22 @@
  * @internal
  */
 
-import type { CartesianSeriesData, DataPoint, XYArraysData, InterleavedXYData } from '../config/types';
+import type {
+  CartesianSeriesData,
+  DataPoint,
+  XYArraysData,
+  InterleavedXYData,
+} from "../config/types";
 
 /**
  * Bounds type for min/max x and y values.
  */
-export type Bounds = Readonly<{ xMin: number; xMax: number; yMin: number; yMax: number }>;
+export type Bounds = Readonly<{
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+}>;
 
 /**
  * Type for typed arrays with numeric indexing (excluding DataView and BigInt arrays).
@@ -39,29 +49,38 @@ type TypedArray =
  */
 function isXYArraysData(data: CartesianSeriesData): data is XYArraysData {
   return (
-    typeof data === 'object' &&
+    typeof data === "object" &&
     data !== null &&
     !Array.isArray(data) &&
-    'x' in data &&
-    'y' in data &&
-    typeof (data as any).x === 'object' &&
-    typeof (data as any).y === 'object' &&
-    'length' in (data as any).x &&
-    'length' in (data as any).y
+    "x" in data &&
+    "y" in data &&
+    typeof (data as any).x === "object" &&
+    typeof (data as any).y === "object" &&
+    "length" in (data as any).x &&
+    "length" in (data as any).y
   );
 }
 
 /**
  * Type guard for InterleavedXYData format (ArrayBufferView).
  */
-function isInterleavedXYData(data: CartesianSeriesData): data is InterleavedXYData {
-  return typeof data === 'object' && data !== null && !Array.isArray(data) && ArrayBuffer.isView(data);
+function isInterleavedXYData(
+  data: CartesianSeriesData,
+): data is InterleavedXYData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    !Array.isArray(data) &&
+    ArrayBuffer.isView(data)
+  );
 }
 
 /**
  * Type guard for tuple DataPoint format.
  */
-function isTupleDataPoint(p: DataPoint): p is readonly [number, number, number?] {
+function isTupleDataPoint(
+  p: DataPoint,
+): p is readonly [number, number, number?] {
   return Array.isArray(p);
 }
 
@@ -78,7 +97,7 @@ export function getPointCount(data: CartesianSeriesData): number {
     // DataView is unsupported - throw clear error
     if (data instanceof DataView) {
       throw new Error(
-        'DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).'
+        "DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).",
       );
     }
     // Interpret pointCount as floor(length/2), tolerant of odd length
@@ -104,7 +123,7 @@ export function getX(data: CartesianSeriesData, i: number): number {
   if (isInterleavedXYData(data)) {
     if (data instanceof DataView) {
       throw new Error(
-        'DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).'
+        "DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).",
       );
     }
     const arr = data as TypedArray;
@@ -114,7 +133,7 @@ export function getX(data: CartesianSeriesData, i: number): number {
   // ReadonlyArray<DataPoint>
   const p = data[i];
   // Guard against undefined/null/non-object entries (sparse arrays, holes)
-  if (p === undefined || p === null || typeof p !== 'object') {
+  if (p === undefined || p === null || typeof p !== "object") {
     return NaN;
   }
   return isTupleDataPoint(p) ? p[0] : p.x;
@@ -133,7 +152,7 @@ export function getY(data: CartesianSeriesData, i: number): number {
   if (isInterleavedXYData(data)) {
     if (data instanceof DataView) {
       throw new Error(
-        'DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).'
+        "DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).",
       );
     }
     const arr = data as TypedArray;
@@ -143,7 +162,7 @@ export function getY(data: CartesianSeriesData, i: number): number {
   // ReadonlyArray<DataPoint>
   const p = data[i];
   // Guard against undefined/null/non-object entries (sparse arrays, holes)
-  if (p === undefined || p === null || typeof p !== 'object') {
+  if (p === undefined || p === null || typeof p !== "object") {
     return NaN;
   }
   return isTupleDataPoint(p) ? p[1] : p.y;
@@ -154,7 +173,10 @@ export function getY(data: CartesianSeriesData, i: number): number {
  * Returns undefined if the point is undefined, null, or non-object (for DataPoint[] format).
  * Note: InterleavedXYData does NOT support interleaved size (use XYArraysData.size if needed).
  */
-export function getSize(data: CartesianSeriesData, i: number): number | undefined {
+export function getSize(
+  data: CartesianSeriesData,
+  i: number,
+): number | undefined {
   if (isXYArraysData(data)) {
     return data.size?.[i];
   }
@@ -167,7 +189,7 @@ export function getSize(data: CartesianSeriesData, i: number): number | undefine
   // ReadonlyArray<DataPoint>
   const p = data[i];
   // Guard against undefined/null/non-object entries (sparse arrays, holes)
-  if (p === undefined || p === null || typeof p !== 'object') {
+  if (p === undefined || p === null || typeof p !== "object") {
     return undefined;
   }
   return isTupleDataPoint(p) ? p[2] : p.size;
@@ -195,7 +217,7 @@ export function packXYInto(
   src: CartesianSeriesData,
   srcPointOffset: number,
   pointCount: number,
-  xOffset: number
+  xOffset: number,
 ): void {
   const availablePoints = getPointCount(src) - srcPointOffset;
   const actualPointCount = Math.min(pointCount, availablePoints);
@@ -205,7 +227,9 @@ export function packXYInto(
   // Validate output buffer capacity
   const requiredOutLength = outFloatOffset + actualPointCount * 2;
   if (requiredOutLength > out.length) {
-    throw new Error(`packXYInto: output buffer too small (need ${requiredOutLength} floats, have ${out.length})`);
+    throw new Error(
+      `packXYInto: output buffer too small (need ${requiredOutLength} floats, have ${out.length})`,
+    );
   }
 
   if (isXYArraysData(src)) {
@@ -222,7 +246,7 @@ export function packXYInto(
   if (isInterleavedXYData(src)) {
     if (src instanceof DataView) {
       throw new Error(
-        'DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).'
+        "DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).",
       );
     }
 
@@ -245,7 +269,7 @@ export function packXYInto(
     const p = src[srcIdx];
 
     // Guard against undefined/null/non-object entries (sparse arrays, holes)
-    if (p === undefined || p === null || typeof p !== 'object') {
+    if (p === undefined || p === null || typeof p !== "object") {
       out[outIdx] = NaN;
       out[outIdx + 1] = NaN;
       continue;
@@ -267,7 +291,9 @@ export function packXYInto(
  * @param data - CartesianSeriesData in any supported format
  * @returns Bounds object or null if no finite points
  */
-export function computeRawBoundsFromCartesianData(data: CartesianSeriesData): Bounds | null {
+export function computeRawBoundsFromCartesianData(
+  data: CartesianSeriesData,
+): Bounds | null {
   let xMin = Number.POSITIVE_INFINITY;
   let xMax = Number.NEGATIVE_INFINITY;
   let yMin = Number.POSITIVE_INFINITY;
@@ -292,7 +318,7 @@ export function computeRawBoundsFromCartesianData(data: CartesianSeriesData): Bo
     // Fast path for InterleavedXYData
     if (data instanceof DataView) {
       throw new Error(
-        'DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).'
+        "DataView is not supported for InterleavedXYData. Use typed arrays (Float32Array, Float64Array, etc.).",
       );
     }
 
@@ -326,7 +352,12 @@ export function computeRawBoundsFromCartesianData(data: CartesianSeriesData): Bo
     }
   }
 
-  if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || !Number.isFinite(yMin) || !Number.isFinite(yMax)) {
+  if (
+    !Number.isFinite(xMin) ||
+    !Number.isFinite(xMax) ||
+    !Number.isFinite(yMin) ||
+    !Number.isFinite(yMax)
+  ) {
     return null;
   }
 
@@ -352,7 +383,9 @@ export function hasNullGaps(data: CartesianSeriesData): boolean {
  * Used by connectNulls to strip gap markers before GPU upload,
  * so the line/area draws through gaps instead of breaking.
  */
-export function filterNullGaps(data: ReadonlyArray<DataPoint | null>): ReadonlyArray<DataPoint> {
+export function filterNullGaps(
+  data: ReadonlyArray<DataPoint | null>,
+): ReadonlyArray<DataPoint> {
   return data.filter((p): p is DataPoint => p !== null);
 }
 
@@ -368,16 +401,20 @@ export function filterNullGaps(data: ReadonlyArray<DataPoint | null>): ReadonlyA
  *
  * Returns a DataPointTuple[] with only finite-coordinate points.
  */
-export function filterGaps(data: CartesianSeriesData): ReadonlyArray<DataPoint> {
+export function filterGaps(
+  data: CartesianSeriesData,
+): ReadonlyArray<DataPoint> {
   if (Array.isArray(data)) {
     // ReadonlyArray<DataPoint | null> — filter nulls and NaN entries
-    return (data as ReadonlyArray<DataPoint | null>).filter((p): p is DataPoint => {
-      if (p === null || p === undefined) return false;
-      if (typeof p !== 'object') return false;
-      const x = isTupleDataPoint(p) ? p[0] : p.x;
-      const y = isTupleDataPoint(p) ? p[1] : p.y;
-      return Number.isFinite(x) && Number.isFinite(y);
-    });
+    return (data as ReadonlyArray<DataPoint | null>).filter(
+      (p): p is DataPoint => {
+        if (p === null || p === undefined) return false;
+        if (typeof p !== "object") return false;
+        const x = isTupleDataPoint(p) ? p[0] : p.x;
+        const y = isTupleDataPoint(p) ? p[1] : p.y;
+        return Number.isFinite(x) && Number.isFinite(y);
+      },
+    );
   }
 
   // XYArraysData or InterleavedXYData — filter out indices where x or y is NaN

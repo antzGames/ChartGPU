@@ -1,8 +1,12 @@
-import type { CartesianSeriesData } from '../config/types';
-import { getPointCount, packXYInto } from './cartesianData';
+import type { CartesianSeriesData } from "../config/types";
+import { getPointCount, packXYInto } from "./cartesianData";
 
 export interface DataStore {
-  setSeries(index: number, data: CartesianSeriesData, options?: Readonly<{ xOffset?: number }>): void;
+  setSeries(
+    index: number,
+    data: CartesianSeriesData,
+    options?: Readonly<{ xOffset?: number }>,
+  ): void;
   /**
    * Appends new points to an existing series without re-uploading the entire buffer when possible.
    *
@@ -53,10 +57,16 @@ function nextPow2(bytes: number): number {
   return 2 ** Math.ceil(Math.log2(n));
 }
 
-function computeGrownCapacityBytes(currentCapacityBytes: number, requiredBytes: number): number {
+function computeGrownCapacityBytes(
+  currentCapacityBytes: number,
+  requiredBytes: number,
+): number {
   // Grow geometrically to reduce buffer churn (power-of-two policy).
   // Enforce 4-byte alignment via MIN_BUFFER_BYTES (>= 4) and power-of-two growth.
-  const required = Math.max(MIN_BUFFER_BYTES, roundUpToMultipleOf4(requiredBytes));
+  const required = Math.max(
+    MIN_BUFFER_BYTES,
+    roundUpToMultipleOf4(requiredBytes),
+  );
   const grown = Math.max(MIN_BUFFER_BYTES, nextPow2(required));
   return Math.max(currentCapacityBytes, grown);
 }
@@ -75,7 +85,11 @@ function fnv1aUpdate(hash: number, words: Uint32Array): number {
  * bit patterns (not numeric equality), to cheaply detect changes.
  */
 function hashFloat32ArrayBits(data: Float32Array): number {
-  const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4);
+  const u32 = new Uint32Array(
+    data.buffer,
+    data.byteOffset,
+    data.byteLength / 4,
+  );
   return fnv1aUpdate(0x811c9dc5, u32); // FNV-1a offset basis
 }
 
@@ -87,7 +101,10 @@ export function createDataStore(device: GPUDevice): DataStore {
    * Packs CartesianSeriesData into an interleaved Float32Array using packXYInto.
    * Returns a view-safe Float32Array suitable for GPU upload.
    */
-  const packCartesianData = (data: CartesianSeriesData, xOffset: number): Float32Array => {
+  const packCartesianData = (
+    data: CartesianSeriesData,
+    xOffset: number,
+  ): Float32Array => {
     const pointCount = getPointCount(data);
     if (pointCount === 0) return new Float32Array(0);
 
@@ -101,7 +118,7 @@ export function createDataStore(device: GPUDevice): DataStore {
 
   const assertNotDisposed = (): void => {
     if (disposed) {
-      throw new Error('DataStore is disposed.');
+      throw new Error("DataStore is disposed.");
     }
   };
 
@@ -109,12 +126,18 @@ export function createDataStore(device: GPUDevice): DataStore {
     assertNotDisposed();
     const entry = series.get(index);
     if (!entry) {
-      throw new Error(`Series ${index} has no data. Call setSeries(${index}, data) first.`);
+      throw new Error(
+        `Series ${index} has no data. Call setSeries(${index}, data) first.`,
+      );
     }
     return entry;
   };
 
-  const setSeries = (index: number, data: CartesianSeriesData, options?: Readonly<{ xOffset?: number }>): void => {
+  const setSeries = (
+    index: number,
+    data: CartesianSeriesData,
+    options?: Readonly<{ xOffset?: number }>,
+  ): void => {
     assertNotDisposed();
 
     const xOffset = options?.xOffset ?? 0;
@@ -126,7 +149,10 @@ export function createDataStore(device: GPUDevice): DataStore {
     const targetBytes = Math.max(MIN_BUFFER_BYTES, requiredBytes);
 
     const existing = series.get(index);
-    const unchanged = existing && existing.pointCount === pointCount && existing.hash32 === hash32;
+    const unchanged =
+      existing &&
+      existing.pointCount === pointCount &&
+      existing.hash32 === hash32;
     if (unchanged) return;
 
     let buffer = existing?.buffer ?? null;
@@ -136,7 +162,7 @@ export function createDataStore(device: GPUDevice): DataStore {
       const maxBufferSize = device.limits.maxBufferSize;
       if (targetBytes > maxBufferSize) {
         throw new Error(
-          `DataStore.setSeries(${index}): required buffer size ${targetBytes} exceeds device.limits.maxBufferSize (${maxBufferSize}).`
+          `DataStore.setSeries(${index}): required buffer size ${targetBytes} exceeds device.limits.maxBufferSize (${maxBufferSize}).`,
         );
       }
 
@@ -148,7 +174,10 @@ export function createDataStore(device: GPUDevice): DataStore {
         }
       }
 
-      const grownCapacityBytes = computeGrownCapacityBytes(capacityBytes, targetBytes);
+      const grownCapacityBytes = computeGrownCapacityBytes(
+        capacityBytes,
+        targetBytes,
+      );
       if (grownCapacityBytes > maxBufferSize) {
         // If geometric growth would exceed the limit, fall back to the exact required size.
         // (Still no shrink: if current capacity was already larger, we'd keep it above.)
@@ -160,13 +189,22 @@ export function createDataStore(device: GPUDevice): DataStore {
 
       buffer = device.createBuffer({
         size: capacityBytes,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        usage:
+          GPUBufferUsage.VERTEX |
+          GPUBufferUsage.STORAGE |
+          GPUBufferUsage.COPY_DST,
       });
     }
 
     // View-safe GPU upload: explicitly pass byteOffset and byteLength
     if (packed.byteLength > 0) {
-      device.queue.writeBuffer(buffer, 0, packed.buffer, packed.byteOffset, packed.byteLength);
+      device.queue.writeBuffer(
+        buffer,
+        0,
+        packed.buffer,
+        packed.byteOffset,
+        packed.byteLength,
+      );
     }
 
     // Create staging buffer matching the packed data for efficient append
@@ -183,7 +221,10 @@ export function createDataStore(device: GPUDevice): DataStore {
     });
   };
 
-  const appendSeries = (index: number, newPoints: CartesianSeriesData): void => {
+  const appendSeries = (
+    index: number,
+    newPoints: CartesianSeriesData,
+  ): void => {
     assertNotDisposed();
     const newPointCount = getPointCount(newPoints);
     if (newPointCount === 0) return;
@@ -198,14 +239,14 @@ export function createDataStore(device: GPUDevice): DataStore {
 
     let buffer = existing.buffer;
     let capacityBytes = existing.capacityBytes;
-    const stagingBuffer = existing.stagingBuffer;
+    let stagingBuffer = existing.stagingBuffer;
 
     const maxBufferSize = device.limits.maxBufferSize;
 
     if (targetBytes > capacityBytes) {
       if (targetBytes > maxBufferSize) {
         throw new Error(
-          `DataStore.appendSeries(${index}): required buffer size ${targetBytes} exceeds device.limits.maxBufferSize (${maxBufferSize}).`
+          `DataStore.appendSeries(${index}): required buffer size ${targetBytes} exceeds device.limits.maxBufferSize (${maxBufferSize}).`,
         );
       }
 
@@ -216,12 +257,19 @@ export function createDataStore(device: GPUDevice): DataStore {
         // Ignore destroy errors; we are replacing the buffer anyway.
       }
 
-      const grownCapacityBytes = computeGrownCapacityBytes(capacityBytes, targetBytes);
-      capacityBytes = grownCapacityBytes > maxBufferSize ? targetBytes : grownCapacityBytes;
+      const grownCapacityBytes = computeGrownCapacityBytes(
+        capacityBytes,
+        targetBytes,
+      );
+      capacityBytes =
+        grownCapacityBytes > maxBufferSize ? targetBytes : grownCapacityBytes;
 
       buffer = device.createBuffer({
         size: capacityBytes,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        usage:
+          GPUBufferUsage.VERTEX |
+          GPUBufferUsage.STORAGE |
+          GPUBufferUsage.COPY_DST,
       });
 
       // Create new staging buffer with grown capacity
@@ -229,11 +277,24 @@ export function createDataStore(device: GPUDevice): DataStore {
       // Copy old data
       newStagingBuffer.set(stagingBuffer.subarray(0, prevPointCount * 2));
       // Pack new data directly into staging buffer
-      packXYInto(newStagingBuffer, prevPointCount * 2, newPoints, 0, newPointCount, existing.xOffset);
+      packXYInto(
+        newStagingBuffer,
+        prevPointCount * 2,
+        newPoints,
+        0,
+        newPointCount,
+        existing.xOffset,
+      );
 
       const fullPacked = newStagingBuffer.subarray(0, nextPointCount * 2);
       if (fullPacked.byteLength > 0) {
-        device.queue.writeBuffer(buffer, 0, fullPacked.buffer, fullPacked.byteOffset, fullPacked.byteLength);
+        device.queue.writeBuffer(
+          buffer,
+          0,
+          fullPacked.buffer,
+          fullPacked.byteOffset,
+          fullPacked.byteLength,
+        );
       }
 
       series.set(index, {
@@ -248,9 +309,19 @@ export function createDataStore(device: GPUDevice): DataStore {
     }
 
     // Fast path: pack directly into existing staging buffer and upload only the appended range.
-    packXYInto(stagingBuffer, prevPointCount * 2, newPoints, 0, newPointCount, existing.xOffset);
+    packXYInto(
+      stagingBuffer,
+      prevPointCount * 2,
+      newPoints,
+      0,
+      newPointCount,
+      existing.xOffset,
+    );
 
-    const appendedView = stagingBuffer.subarray(prevPointCount * 2, nextPointCount * 2);
+    const appendedView = stagingBuffer.subarray(
+      prevPointCount * 2,
+      nextPointCount * 2,
+    );
     if (appendedView.byteLength > 0) {
       const byteOffset = prevPointCount * 2 * 4;
       device.queue.writeBuffer(
@@ -258,12 +329,16 @@ export function createDataStore(device: GPUDevice): DataStore {
         byteOffset,
         appendedView.buffer,
         appendedView.byteOffset,
-        appendedView.byteLength
+        appendedView.byteLength,
       );
     }
 
     // Incremental FNV-1a update over the appended IEEE-754 bit patterns.
-    const appendWords = new Uint32Array(appendedView.buffer, appendedView.byteOffset, appendedView.byteLength / 4);
+    const appendWords = new Uint32Array(
+      appendedView.buffer,
+      appendedView.byteOffset,
+      appendedView.byteLength / 4,
+    );
     const nextHash32 = fnv1aUpdate(existing.hash32, appendWords);
 
     series.set(index, {

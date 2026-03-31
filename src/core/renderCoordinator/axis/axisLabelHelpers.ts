@@ -8,7 +8,7 @@
  * @module axisLabelHelpers
  */
 
-import type { TextOverlayAnchor } from '../../../components/createTextOverlay';
+import type { TextOverlayAnchor } from "../../../components/createTextOverlay";
 
 /**
  * Default label padding in CSS pixels.
@@ -27,11 +27,14 @@ export const LABEL_PADDING_CSS_PX = 4;
  * @param totalTicks - Total number of ticks
  * @returns Text anchor for label positioning
  */
-export function getXAxisTickLabelAnchor(tickIndex: number, totalTicks: number): TextOverlayAnchor {
-  if (totalTicks === 1) return 'middle';
-  if (tickIndex === 0) return 'start';
-  if (tickIndex === totalTicks - 1) return 'end';
-  return 'middle';
+export function getXAxisTickLabelAnchor(
+  tickIndex: number,
+  totalTicks: number,
+): TextOverlayAnchor {
+  if (totalTicks === 1) return "middle";
+  if (tickIndex === 0) return "start";
+  if (tickIndex === totalTicks - 1) return "end";
+  return "middle";
 }
 
 /**
@@ -44,8 +47,14 @@ export function getXAxisTickLabelAnchor(tickIndex: number, totalTicks: number): 
  * @param fontSize - Font size for labels
  * @returns Y position in CSS pixels (canvas-local)
  */
-export function getXAxisLabelY(plotBottomCss: number, tickLengthCssPx: number, fontSize: number): number {
-  return plotBottomCss + tickLengthCssPx + LABEL_PADDING_CSS_PX + fontSize * 0.5;
+export function getXAxisLabelY(
+  plotBottomCss: number,
+  tickLengthCssPx: number,
+  fontSize: number,
+): number {
+  return (
+    plotBottomCss + tickLengthCssPx + LABEL_PADDING_CSS_PX + fontSize * 0.5
+  );
 }
 
 /**
@@ -57,7 +66,10 @@ export function getXAxisLabelY(plotBottomCss: number, tickLengthCssPx: number, f
  * @param tickLengthCssPx - Length of tick marks
  * @returns X position in CSS pixels (canvas-local)
  */
-export function getYAxisLabelX(plotLeftCss: number, tickLengthCssPx: number): number {
+export function getYAxisLabelX(
+  plotLeftCss: number,
+  tickLengthCssPx: number,
+): number {
   return plotLeftCss - tickLengthCssPx - LABEL_PADDING_CSS_PX;
 }
 
@@ -79,14 +91,16 @@ export function getXAxisTitleY(
   fontSize: number,
   canvasCssHeight: number,
   hasSliderZoom: boolean,
-  sliderHeightCssPx: number = 32
+  sliderHeightCssPx: number = 32,
 ): number {
   // xLabelY is the vertical center of the tick labels; add half font size to
   // approximate the tick-label "bottom edge"
   const xTickLabelsBottom = xLabelY + fontSize * 0.5;
 
   // Bottom limit is either canvas height or canvas height minus slider
-  const bottomLimitCss = hasSliderZoom ? canvasCssHeight - sliderHeightCssPx : canvasCssHeight;
+  const bottomLimitCss = hasSliderZoom
+    ? canvasCssHeight - sliderHeightCssPx
+    : canvasCssHeight;
 
   // Center title between tick labels and bottom limit
   return (xTickLabelsBottom + bottomLimitCss) / 2;
@@ -102,9 +116,29 @@ export function getXAxisTitleY(
  * @param titleFontSize - Font size for axis title
  * @returns X position for y-axis title in CSS pixels
  */
-export function getYAxisTitleX(yLabelX: number, maxTickLabelWidth: number, titleFontSize: number): number {
+export function getYAxisTitleX(
+  yLabelX: number,
+  maxTickLabelWidth: number,
+  titleFontSize: number,
+): number {
   const yTickLabelLeft = yLabelX - maxTickLabelWidth;
   return yTickLabelLeft - LABEL_PADDING_CSS_PX - titleFontSize * 0.5;
+}
+
+/**
+ * Measures the maximum width of a set of rendered labels.
+ *
+ * @param labelSpans - Array of HTMLSpanElement labels
+ * @returns Maximum width in CSS pixels, or 0 if no labels
+ */
+export function measureMaxLabelWidth(
+  labelSpans: readonly HTMLSpanElement[],
+): number {
+  if (labelSpans.length === 0) return 0;
+  return labelSpans.reduce(
+    (max, span) => Math.max(max, span.getBoundingClientRect().width),
+    0,
+  );
 }
 
 /**

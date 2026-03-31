@@ -1,20 +1,24 @@
-import candlestickWgsl from '../shaders/candlestick.wgsl?raw';
-import type { ResolvedCandlestickSeriesConfig } from '../config/OptionResolver';
-import type { OHLCDataPoint, OHLCDataPointTuple } from '../config/types';
-import type { LinearScale } from '../utils/scales';
-import type { GridArea } from './createGridRenderer';
-import { parseCssColorToRgba01 } from '../utils/colors';
-import { createRenderPipeline, createUniformBuffer, writeUniformBuffer } from './rendererUtils';
-import type { PipelineCache } from '../core/PipelineCache';
+import candlestickWgsl from "../shaders/candlestick.wgsl?raw";
+import type { ResolvedCandlestickSeriesConfig } from "../config/OptionResolver";
+import type { OHLCDataPoint, OHLCDataPointTuple } from "../config/types";
+import type { LinearScale } from "../utils/scales";
+import type { GridArea } from "./createGridRenderer";
+import { parseCssColorToRgba01 } from "../utils/colors";
+import {
+  createRenderPipeline,
+  createUniformBuffer,
+  writeUniformBuffer,
+} from "./rendererUtils";
+import type { PipelineCache } from "../core/PipelineCache";
 
 export interface CandlestickRenderer {
   prepare(
     series: ResolvedCandlestickSeriesConfig,
-    data: ResolvedCandlestickSeriesConfig['data'],
+    data: ResolvedCandlestickSeriesConfig["data"],
     xScale: LinearScale,
     yScale: LinearScale,
     gridArea: GridArea,
-    backgroundColor?: string
+    backgroundColor?: string,
   ): void;
   render(passEncoder: GPURenderPassEncoder): void;
   dispose(): void;
@@ -43,15 +47,17 @@ export interface CandlestickRendererOptions {
 
 type Rgba = readonly [r: number, g: number, b: number, a: number];
 
-const DEFAULT_TARGET_FORMAT: GPUTextureFormat = 'bgra8unorm';
+const DEFAULT_TARGET_FORMAT: GPUTextureFormat = "bgra8unorm";
 const DEFAULT_WICK_WIDTH_CSS_PX = 1;
 const INSTANCE_STRIDE_BYTES = 40; // 6 floats + vec4 color
 const INSTANCE_STRIDE_FLOATS = INSTANCE_STRIDE_BYTES / 4;
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
-const clampInt = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v | 0));
+const clampInt = (v: number, lo: number, hi: number): number =>
+  Math.min(hi, Math.max(lo, v | 0));
 
-const parseSeriesColorToRgba01 = (color: string): Rgba => parseCssColorToRgba01(color) ?? ([0, 0, 0, 1] as const);
+const parseSeriesColorToRgba01 = (color: string): Rgba =>
+  parseCssColorToRgba01(color) ?? ([0, 0, 0, 1] as const);
 
 const nextPow2 = (v: number): number => {
   if (!Number.isFinite(v) || v <= 0) return 1;
@@ -66,10 +72,11 @@ const parsePercent = (value: string): number | null => {
   return Number.isFinite(p) ? p : null;
 };
 
-const isTupleDataPoint = (p: OHLCDataPoint): p is OHLCDataPointTuple => Array.isArray(p);
+const isTupleDataPoint = (p: OHLCDataPoint): p is OHLCDataPointTuple =>
+  Array.isArray(p);
 
 const getOHLC = (
-  p: OHLCDataPoint
+  p: OHLCDataPoint,
 ): {
   readonly timestamp: number;
   readonly open: number;
@@ -80,11 +87,17 @@ const getOHLC = (
   if (isTupleDataPoint(p)) {
     return { timestamp: p[0], open: p[1], close: p[2], low: p[3], high: p[4] };
   }
-  return { timestamp: p.timestamp, open: p.open, close: p.close, low: p.low, high: p.high };
+  return {
+    timestamp: p.timestamp,
+    open: p.open,
+    close: p.close,
+    low: p.low,
+    high: p.high,
+  };
 };
 
 const computePlotSizeCssPx = (
-  gridArea: GridArea
+  gridArea: GridArea,
 ): { readonly plotWidthCss: number; readonly plotHeightCss: number } | null => {
   const dpr = gridArea.devicePixelRatio;
   if (!(dpr > 0)) return null;
@@ -97,7 +110,7 @@ const computePlotSizeCssPx = (
 };
 
 const computePlotClipRect = (
-  gridArea: GridArea
+  gridArea: GridArea,
 ): {
   readonly left: number;
   readonly right: number;
@@ -106,7 +119,15 @@ const computePlotClipRect = (
   readonly width: number;
   readonly height: number;
 } => {
-  const { left, right, top, bottom, canvasWidth, canvasHeight, devicePixelRatio } = gridArea;
+  const {
+    left,
+    right,
+    top,
+    bottom,
+    canvasWidth,
+    canvasHeight,
+    devicePixelRatio,
+  } = gridArea;
 
   const plotLeft = left * devicePixelRatio;
   const plotRight = canvasWidth - right * devicePixelRatio;
@@ -129,8 +150,13 @@ const computePlotClipRect = (
 };
 
 const computePlotScissorDevicePx = (
-  gridArea: GridArea
-): { readonly x: number; readonly y: number; readonly w: number; readonly h: number } => {
+  gridArea: GridArea,
+): {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+} => {
   const { canvasWidth, canvasHeight, devicePixelRatio } = gridArea;
 
   const plotLeftDevice = gridArea.left * devicePixelRatio;
@@ -138,10 +164,26 @@ const computePlotScissorDevicePx = (
   const plotTopDevice = gridArea.top * devicePixelRatio;
   const plotBottomDevice = canvasHeight - gridArea.bottom * devicePixelRatio;
 
-  const scissorX = clampInt(Math.floor(plotLeftDevice), 0, Math.max(0, canvasWidth));
-  const scissorY = clampInt(Math.floor(plotTopDevice), 0, Math.max(0, canvasHeight));
-  const scissorR = clampInt(Math.ceil(plotRightDevice), 0, Math.max(0, canvasWidth));
-  const scissorB = clampInt(Math.ceil(plotBottomDevice), 0, Math.max(0, canvasHeight));
+  const scissorX = clampInt(
+    Math.floor(plotLeftDevice),
+    0,
+    Math.max(0, canvasWidth),
+  );
+  const scissorY = clampInt(
+    Math.floor(plotTopDevice),
+    0,
+    Math.max(0, canvasHeight),
+  );
+  const scissorR = clampInt(
+    Math.ceil(plotRightDevice),
+    0,
+    Math.max(0, canvasWidth),
+  );
+  const scissorB = clampInt(
+    Math.ceil(plotBottomDevice),
+    0,
+    Math.max(0, canvasHeight),
+  );
   const scissorW = Math.max(0, scissorR - scissorX);
   const scissorH = Math.max(0, scissorB - scissorY);
 
@@ -170,7 +212,7 @@ const computeCategoryWidthClip = (
   xScale: LinearScale,
   categoryStep: number,
   plotClipRect: Readonly<{ width: number }>,
-  fallbackCategoryCount: number
+  fallbackCategoryCount: number,
 ): number => {
   if (Number.isFinite(categoryStep) && categoryStep > 0) {
     const x0 = 0;
@@ -212,21 +254,31 @@ const createIdentityMat4Buffer = (): ArrayBuffer => {
 
 export function createCandlestickRenderer(
   device: GPUDevice,
-  options?: CandlestickRendererOptions
+  options?: CandlestickRendererOptions,
 ): CandlestickRenderer {
   let disposed = false;
   const targetFormat = options?.targetFormat ?? DEFAULT_TARGET_FORMAT;
   // Be resilient: coerce invalid values to 1 (no MSAA).
   const sampleCountRaw = options?.sampleCount ?? 1;
-  const sampleCount = Number.isFinite(sampleCountRaw) ? Math.max(1, Math.floor(sampleCountRaw)) : 1;
+  const sampleCount = Number.isFinite(sampleCountRaw)
+    ? Math.max(1, Math.floor(sampleCountRaw))
+    : 1;
   const pipelineCache = options?.pipelineCache;
 
   const bindGroupLayout = device.createBindGroupLayout({
-    entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }],
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "uniform" },
+      },
+    ],
   });
 
   // VSUniforms: mat4x4 (64 bytes) + wickWidthClip f32 (4 bytes) + pad (12 bytes) = 80 bytes
-  const vsUniformBuffer = createUniformBuffer(device, 80, { label: 'candlestickRenderer/vsUniforms' });
+  const vsUniformBuffer = createUniformBuffer(device, 80, {
+    label: "candlestickRenderer/vsUniforms",
+  });
   writeUniformBuffer(device, vsUniformBuffer, createIdentityMat4Buffer()); // Default to identity
 
   const vsUniformScratchBuffer = new ArrayBuffer(80);
@@ -240,40 +292,48 @@ export function createCandlestickRenderer(
   const pipeline = createRenderPipeline(
     device,
     {
-      label: 'candlestickRenderer/pipeline',
+      label: "candlestickRenderer/pipeline",
       bindGroupLayouts: [bindGroupLayout],
       vertex: {
         code: candlestickWgsl,
-        label: 'candlestick.wgsl',
+        label: "candlestick.wgsl",
         buffers: [
           {
             arrayStride: INSTANCE_STRIDE_BYTES,
-            stepMode: 'instance',
+            stepMode: "instance",
             attributes: [
-              { shaderLocation: 0, format: 'float32', offset: 0 },
-              { shaderLocation: 1, format: 'float32', offset: 4 },
-              { shaderLocation: 2, format: 'float32', offset: 8 },
-              { shaderLocation: 3, format: 'float32', offset: 12 },
-              { shaderLocation: 4, format: 'float32', offset: 16 },
-              { shaderLocation: 5, format: 'float32', offset: 20 },
-              { shaderLocation: 6, format: 'float32x4', offset: 24 },
+              { shaderLocation: 0, format: "float32", offset: 0 },
+              { shaderLocation: 1, format: "float32", offset: 4 },
+              { shaderLocation: 2, format: "float32", offset: 8 },
+              { shaderLocation: 3, format: "float32", offset: 12 },
+              { shaderLocation: 4, format: "float32", offset: 16 },
+              { shaderLocation: 5, format: "float32", offset: 20 },
+              { shaderLocation: 6, format: "float32x4", offset: 24 },
             ],
           },
         ],
       },
       fragment: {
         code: candlestickWgsl,
-        label: 'candlestick.wgsl',
+        label: "candlestick.wgsl",
         formats: targetFormat,
         blend: {
-          color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-          alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+          color: {
+            operation: "add",
+            srcFactor: "src-alpha",
+            dstFactor: "one-minus-src-alpha",
+          },
+          alpha: {
+            operation: "add",
+            srcFactor: "one",
+            dstFactor: "one-minus-src-alpha",
+          },
         },
       },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      primitive: { topology: "triangle-list", cullMode: "none" },
       multisample: { count: sampleCount },
     },
-    pipelineCache
+    pipelineCache,
   );
 
   let instanceBuffer: GPUBuffer | null = null;
@@ -283,7 +343,12 @@ export function createCandlestickRenderer(
 
   let lastCanvasWidth = 0;
   let lastCanvasHeight = 0;
-  let lastScissor: { readonly x: number; readonly y: number; readonly w: number; readonly h: number } | null = null;
+  let lastScissor: {
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+  } | null = null;
 
   // Hollow mode state
   let hollowMode = false;
@@ -293,7 +358,7 @@ export function createCandlestickRenderer(
   let cpuHollowStagingF32 = new Float32Array(cpuHollowStagingBuffer);
 
   const assertNotDisposed = (): void => {
-    if (disposed) throw new Error('CandlestickRenderer is disposed.');
+    if (disposed) throw new Error("CandlestickRenderer is disposed.");
   };
 
   const ensureCpuInstanceCapacityFloats = (requiredFloats: number): void => {
@@ -310,7 +375,14 @@ export function createCandlestickRenderer(
     cpuHollowStagingF32 = new Float32Array(cpuHollowStagingBuffer);
   };
 
-  const prepare: CandlestickRenderer['prepare'] = (series, data, xScale, yScale, gridArea, backgroundColor) => {
+  const prepare: CandlestickRenderer["prepare"] = (
+    series,
+    data,
+    xScale,
+    yScale,
+    gridArea,
+    backgroundColor,
+  ) => {
     assertNotDisposed();
 
     if (data.length === 0) {
@@ -327,7 +399,10 @@ export function createCandlestickRenderer(
     }
 
     const plotClipRect = computePlotClipRect(gridArea);
-    const clipPerCssX = plotSize.plotWidthCss > 0 ? plotClipRect.width / plotSize.plotWidthCss : 0;
+    const clipPerCssX =
+      plotSize.plotWidthCss > 0
+        ? plotClipRect.width / plotSize.plotWidthCss
+        : 0;
 
     lastCanvasWidth = gridArea.canvasWidth;
     lastCanvasHeight = gridArea.canvasHeight;
@@ -335,14 +410,19 @@ export function createCandlestickRenderer(
 
     // Compute category step and width
     const categoryStep = computeCategoryStep(data);
-    const categoryWidthClip = computeCategoryWidthClip(xScale, categoryStep, plotClipRect, data.length);
+    const categoryWidthClip = computeCategoryWidthClip(
+      xScale,
+      categoryStep,
+      plotClipRect,
+      data.length,
+    );
 
     // Compute body width in clip space
     let bodyWidthClip = 0;
     const rawBarWidth = series.barWidth;
-    if (typeof rawBarWidth === 'number') {
+    if (typeof rawBarWidth === "number") {
       bodyWidthClip = Math.max(0, rawBarWidth) * clipPerCssX;
-    } else if (typeof rawBarWidth === 'string') {
+    } else if (typeof rawBarWidth === "string") {
       const p = parsePercent(rawBarWidth);
       bodyWidthClip = p == null ? 0 : categoryWidthClip * clamp01(p);
     }
@@ -350,10 +430,14 @@ export function createCandlestickRenderer(
     // Apply min/max width constraints (CSS pixels converted to clip space)
     const minWidthClip = series.barMinWidth * clipPerCssX;
     const maxWidthClip = series.barMaxWidth * clipPerCssX;
-    bodyWidthClip = Math.min(Math.max(bodyWidthClip, minWidthClip), maxWidthClip);
+    bodyWidthClip = Math.min(
+      Math.max(bodyWidthClip, minWidthClip),
+      maxWidthClip,
+    );
 
     // Compute wick width in clip space (default 1px CSS)
-    const wickWidthCssPx = series.itemStyle.borderWidth ?? DEFAULT_WICK_WIDTH_CSS_PX;
+    const wickWidthCssPx =
+      series.itemStyle.borderWidth ?? DEFAULT_WICK_WIDTH_CSS_PX;
     const wickWidthClip = Math.max(0, wickWidthCssPx) * clipPerCssX;
 
     // Write VS uniforms (identity transform + wick width)
@@ -384,11 +468,17 @@ export function createCandlestickRenderer(
     // Parse colors
     const upColor = parseSeriesColorToRgba01(series.itemStyle.upColor);
     const downColor = parseSeriesColorToRgba01(series.itemStyle.downColor);
-    const upBorderColor = parseSeriesColorToRgba01(series.itemStyle.upBorderColor);
-    const downBorderColor = parseSeriesColorToRgba01(series.itemStyle.downBorderColor);
-    const bgColor = backgroundColor ? parseSeriesColorToRgba01(backgroundColor) : ([0, 0, 0, 1] as const);
+    const upBorderColor = parseSeriesColorToRgba01(
+      series.itemStyle.upBorderColor,
+    );
+    const downBorderColor = parseSeriesColorToRgba01(
+      series.itemStyle.downBorderColor,
+    );
+    const bgColor = backgroundColor
+      ? parseSeriesColorToRgba01(backgroundColor)
+      : ([0, 0, 0, 1] as const);
 
-    hollowMode = series.style === 'hollow';
+    hollowMode = series.style === "hollow";
 
     ensureCpuInstanceCapacityFloats(data.length * INSTANCE_STRIDE_FLOATS);
     const f32 = cpuInstanceStagingF32;
@@ -448,7 +538,10 @@ export function createCandlestickRenderer(
         // Pass 2: For UP candles only, draw body inset with background color to punch out interior
         if (isUp) {
           const borderWidthClip = series.itemStyle.borderWidth * clipPerCssX;
-          const insetBodyWidthClip = Math.max(0, bodyWidthClip - 2 * borderWidthClip);
+          const insetBodyWidthClip = Math.max(
+            0,
+            bodyWidthClip - 2 * borderWidthClip,
+          );
 
           hollowF32[hollowOutFloats + 0] = xClip;
           hollowF32[hollowOutFloats + 1] = openClip;
@@ -485,7 +578,10 @@ export function createCandlestickRenderer(
     // Upload primary instance buffer
     const requiredBytes = Math.max(4, instanceCount * INSTANCE_STRIDE_BYTES);
     if (!instanceBuffer || instanceBuffer.size < requiredBytes) {
-      const grownBytes = Math.max(Math.max(4, nextPow2(requiredBytes)), instanceBuffer ? instanceBuffer.size : 0);
+      const grownBytes = Math.max(
+        Math.max(4, nextPow2(requiredBytes)),
+        instanceBuffer ? instanceBuffer.size : 0,
+      );
       if (instanceBuffer) {
         try {
           instanceBuffer.destroy();
@@ -494,23 +590,35 @@ export function createCandlestickRenderer(
         }
       }
       instanceBuffer = device.createBuffer({
-        label: 'candlestickRenderer/instanceBuffer',
+        label: "candlestickRenderer/instanceBuffer",
         size: grownBytes,
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
       });
     }
 
     if (instanceCount > 0) {
-      device.queue.writeBuffer(instanceBuffer, 0, cpuInstanceStagingBuffer, 0, instanceCount * INSTANCE_STRIDE_BYTES);
+      device.queue.writeBuffer(
+        instanceBuffer,
+        0,
+        cpuInstanceStagingBuffer,
+        0,
+        instanceCount * INSTANCE_STRIDE_BYTES,
+      );
     }
 
     // Upload hollow mode buffer (second pass)
     if (hollowMode && hollowInstanceCount > 0) {
-      const hollowRequiredBytes = Math.max(4, hollowInstanceCount * INSTANCE_STRIDE_BYTES);
-      if (!hollowInstanceBuffer || hollowInstanceBuffer.size < hollowRequiredBytes) {
+      const hollowRequiredBytes = Math.max(
+        4,
+        hollowInstanceCount * INSTANCE_STRIDE_BYTES,
+      );
+      if (
+        !hollowInstanceBuffer ||
+        hollowInstanceBuffer.size < hollowRequiredBytes
+      ) {
         const grownBytes = Math.max(
           Math.max(4, nextPow2(hollowRequiredBytes)),
-          hollowInstanceBuffer ? hollowInstanceBuffer.size : 0
+          hollowInstanceBuffer ? hollowInstanceBuffer.size : 0,
         );
         if (hollowInstanceBuffer) {
           try {
@@ -520,7 +628,7 @@ export function createCandlestickRenderer(
           }
         }
         hollowInstanceBuffer = device.createBuffer({
-          label: 'candlestickRenderer/hollowInstanceBuffer',
+          label: "candlestickRenderer/hollowInstanceBuffer",
           size: grownBytes,
           usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
         });
@@ -530,19 +638,24 @@ export function createCandlestickRenderer(
         0,
         cpuHollowStagingBuffer,
         0,
-        hollowInstanceCount * INSTANCE_STRIDE_BYTES
+        hollowInstanceCount * INSTANCE_STRIDE_BYTES,
       );
     }
   };
 
-  const render: CandlestickRenderer['render'] = (passEncoder) => {
+  const render: CandlestickRenderer["render"] = (passEncoder) => {
     assertNotDisposed();
 
     if (!instanceBuffer || instanceCount === 0) return;
 
     // Apply scissor rect to clip to plot area
     if (lastScissor && lastCanvasWidth > 0 && lastCanvasHeight > 0) {
-      passEncoder.setScissorRect(lastScissor.x, lastScissor.y, lastScissor.w, lastScissor.h);
+      passEncoder.setScissorRect(
+        lastScissor.x,
+        lastScissor.y,
+        lastScissor.w,
+        lastScissor.h,
+      );
     }
 
     passEncoder.setPipeline(pipeline);
@@ -565,7 +678,7 @@ export function createCandlestickRenderer(
     }
   };
 
-  const dispose: CandlestickRenderer['dispose'] = () => {
+  const dispose: CandlestickRenderer["dispose"] = () => {
     if (disposed) return;
     disposed = true;
 

@@ -2,21 +2,31 @@
  * Tests for cartesianData helpers - guards against undefined/null entries.
  */
 
-import { describe, it, expect } from 'vitest';
-import { getX, getY, getSize, computeRawBoundsFromCartesianData, packXYInto } from '../cartesianData';
-import type { DataPoint } from '../../config/types';
+import { describe, it, expect } from "vitest";
+import {
+  getX,
+  getY,
+  getSize,
+  computeRawBoundsFromCartesianData,
+  packXYInto,
+} from "../cartesianData";
+import type { DataPoint } from "../../config/types";
 
-describe('cartesianData - sparse array handling', () => {
-  describe('getX', () => {
-    it('returns NaN for undefined DataPoint entries', () => {
-      const sparseData: DataPoint[] = [{ x: 1, y: 2 }, undefined as any, { x: 3, y: 4 }];
+describe("cartesianData - sparse array handling", () => {
+  describe("getX", () => {
+    it("returns NaN for undefined DataPoint entries", () => {
+      const sparseData: DataPoint[] = [
+        { x: 1, y: 2 },
+        undefined as any,
+        { x: 3, y: 4 },
+      ];
 
       expect(getX(sparseData, 0)).toBe(1);
       expect(Number.isNaN(getX(sparseData, 1))).toBe(true);
       expect(getX(sparseData, 2)).toBe(3);
     });
 
-    it('returns NaN for null DataPoint entries', () => {
+    it("returns NaN for null DataPoint entries", () => {
       const invalidData: any = [{ x: 1, y: 2 }, null, { x: 3, y: 4 }];
 
       expect(getX(invalidData, 0)).toBe(1);
@@ -24,7 +34,7 @@ describe('cartesianData - sparse array handling', () => {
       expect(getX(invalidData, 2)).toBe(3);
     });
 
-    it('handles tuple format with undefined entries', () => {
+    it("handles tuple format with undefined entries", () => {
       const sparseData: DataPoint[] = [[1, 2], undefined as any, [3, 4]];
 
       expect(getX(sparseData, 0)).toBe(1);
@@ -33,16 +43,20 @@ describe('cartesianData - sparse array handling', () => {
     });
   });
 
-  describe('getY', () => {
-    it('returns NaN for undefined DataPoint entries', () => {
-      const sparseData: DataPoint[] = [{ x: 1, y: 2 }, undefined as any, { x: 3, y: 4 }];
+  describe("getY", () => {
+    it("returns NaN for undefined DataPoint entries", () => {
+      const sparseData: DataPoint[] = [
+        { x: 1, y: 2 },
+        undefined as any,
+        { x: 3, y: 4 },
+      ];
 
       expect(getY(sparseData, 0)).toBe(2);
       expect(Number.isNaN(getY(sparseData, 1))).toBe(true);
       expect(getY(sparseData, 2)).toBe(4);
     });
 
-    it('returns NaN for null DataPoint entries', () => {
+    it("returns NaN for null DataPoint entries", () => {
       const invalidData: any = [{ x: 1, y: 2 }, null, { x: 3, y: 4 }];
 
       expect(getY(invalidData, 0)).toBe(2);
@@ -50,7 +64,7 @@ describe('cartesianData - sparse array handling', () => {
       expect(getY(invalidData, 2)).toBe(4);
     });
 
-    it('handles tuple format with undefined entries', () => {
+    it("handles tuple format with undefined entries", () => {
       const sparseData: DataPoint[] = [[1, 2], undefined as any, [3, 4]];
 
       expect(getY(sparseData, 0)).toBe(2);
@@ -59,25 +73,37 @@ describe('cartesianData - sparse array handling', () => {
     });
   });
 
-  describe('getSize', () => {
-    it('returns undefined for undefined DataPoint entries', () => {
-      const sparseData: DataPoint[] = [{ x: 1, y: 2, size: 10 }, undefined as any, { x: 3, y: 4, size: 20 }];
+  describe("getSize", () => {
+    it("returns undefined for undefined DataPoint entries", () => {
+      const sparseData: DataPoint[] = [
+        { x: 1, y: 2, size: 10 },
+        undefined as any,
+        { x: 3, y: 4, size: 20 },
+      ];
 
       expect(getSize(sparseData, 0)).toBe(10);
       expect(getSize(sparseData, 1)).toBeUndefined();
       expect(getSize(sparseData, 2)).toBe(20);
     });
 
-    it('returns undefined for null DataPoint entries', () => {
-      const invalidData: any = [{ x: 1, y: 2, size: 10 }, null, { x: 3, y: 4, size: 20 }];
+    it("returns undefined for null DataPoint entries", () => {
+      const invalidData: any = [
+        { x: 1, y: 2, size: 10 },
+        null,
+        { x: 3, y: 4, size: 20 },
+      ];
 
       expect(getSize(invalidData, 0)).toBe(10);
       expect(getSize(invalidData, 1)).toBeUndefined();
       expect(getSize(invalidData, 2)).toBe(20);
     });
 
-    it('handles tuple format with undefined entries', () => {
-      const sparseData: DataPoint[] = [[1, 2, 10], undefined as any, [3, 4, 20]];
+    it("handles tuple format with undefined entries", () => {
+      const sparseData: DataPoint[] = [
+        [1, 2, 10],
+        undefined as any,
+        [3, 4, 20],
+      ];
 
       expect(getSize(sparseData, 0)).toBe(10);
       expect(getSize(sparseData, 1)).toBeUndefined();
@@ -85,9 +111,15 @@ describe('cartesianData - sparse array handling', () => {
     });
   });
 
-  describe('computeRawBoundsFromCartesianData', () => {
-    it('skips undefined and null DataPoint entries when computing bounds', () => {
-      const sparseData: DataPoint[] = [{ x: 1, y: 2 }, undefined as any, { x: 3, y: 4 }, null as any, { x: 5, y: 6 }];
+  describe("computeRawBoundsFromCartesianData", () => {
+    it("skips undefined and null DataPoint entries when computing bounds", () => {
+      const sparseData: DataPoint[] = [
+        { x: 1, y: 2 },
+        undefined as any,
+        { x: 3, y: 4 },
+        null as any,
+        { x: 5, y: 6 },
+      ];
 
       const bounds = computeRawBoundsFromCartesianData(sparseData);
 
@@ -100,8 +132,8 @@ describe('cartesianData - sparse array handling', () => {
   });
 });
 
-describe('packXYInto - null gap handling', () => {
-  it('writes NaN for null entries in DataPoint array', () => {
+describe("packXYInto - null gap handling", () => {
+  it("writes NaN for null entries in DataPoint array", () => {
     const data: (DataPoint | null)[] = [[0, 1], null, [2, 3]];
     const out = new Float32Array(6);
     packXYInto(out, 0, data as any, 0, 3, 0);
@@ -114,7 +146,7 @@ describe('packXYInto - null gap handling', () => {
     expect(out[5]).toBe(3); // y2
   });
 
-  it('handles consecutive null entries', () => {
+  it("handles consecutive null entries", () => {
     const data: (DataPoint | null)[] = [[0, 1], null, null, [3, 4]];
     const out = new Float32Array(8);
     packXYInto(out, 0, data as any, 0, 4, 0);
@@ -129,7 +161,7 @@ describe('packXYInto - null gap handling', () => {
     expect(out[7]).toBe(4);
   });
 
-  it('writes NaN for undefined entries in DataPoint array', () => {
+  it("writes NaN for undefined entries in DataPoint array", () => {
     const data: DataPoint[] = [[0, 1], undefined as any, [2, 3]];
     const out = new Float32Array(6);
     packXYInto(out, 0, data as any, 0, 3, 0);
@@ -142,7 +174,7 @@ describe('packXYInto - null gap handling', () => {
     expect(out[5]).toBe(3);
   });
 
-  it('applies xOffset correctly alongside null entries', () => {
+  it("applies xOffset correctly alongside null entries", () => {
     const data: (DataPoint | null)[] = [[10, 1], null, [20, 3]];
     const out = new Float32Array(6);
     packXYInto(out, 0, data as any, 0, 3, 10);

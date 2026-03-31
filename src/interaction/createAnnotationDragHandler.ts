@@ -10,8 +10,8 @@
  * Uses optimistic updates during drag for 60 FPS performance.
  */
 
-import type { AnnotationConfig, DataPoint } from '../config/types.js';
-import type { ChartGPUInstance } from '../ChartGPU.js';
+import type { AnnotationConfig, DataPoint } from "../config/types.js";
+import type { ChartGPUInstance } from "../ChartGPU.js";
 
 export interface AnnotationDragCallbacks {
   onDragMove: (index: number, updates: Partial<AnnotationConfig>) => void;
@@ -20,7 +20,12 @@ export interface AnnotationDragCallbacks {
 }
 
 export interface AnnotationDragHandler {
-  startDrag(annotationIndex: number, annotation: AnnotationConfig, startPointerX: number, startPointerY: number): void;
+  startDrag(
+    annotationIndex: number,
+    annotation: AnnotationConfig,
+    startPointerX: number,
+    startPointerY: number,
+  ): void;
   isDragging(): boolean;
   dispose(): void;
 }
@@ -39,18 +44,23 @@ interface DragState {
 export function createAnnotationDragHandler(
   chart: ChartGPUInstance,
   canvas: HTMLCanvasElement,
-  callbacks: AnnotationDragCallbacks
+  callbacks: AnnotationDragCallbacks,
 ): AnnotationDragHandler {
   let dragState: DragState | null = null;
 
   // Type guards for data points
   const isTupleDataPoint = (p: any): p is [number, number] => Array.isArray(p);
-  const isTupleOHLCDataPoint = (p: any): p is [number, number, number, number, number] => Array.isArray(p);
+  const isTupleOHLCDataPoint = (
+    p: any,
+  ): p is [number, number, number, number, number] => Array.isArray(p);
   const getPointX = (p: any): number => (isTupleDataPoint(p) ? p[0] : p.x);
   const getPointY = (p: any): number => (isTupleDataPoint(p) ? p[1] : p.y);
-  const getOHLCTimestamp = (p: any): number => (isTupleOHLCDataPoint(p) ? p[0] : p.timestamp);
-  const getOHLCHigh = (p: any): number => (isTupleOHLCDataPoint(p) ? p[2] : p.high);
-  const getOHLCLow = (p: any): number => (isTupleOHLCDataPoint(p) ? p[3] : p.low);
+  const getOHLCTimestamp = (p: any): number =>
+    isTupleOHLCDataPoint(p) ? p[0] : p.timestamp;
+  const getOHLCHigh = (p: any): number =>
+    isTupleOHLCDataPoint(p) ? p[2] : p.high;
+  const getOHLCLow = (p: any): number =>
+    isTupleOHLCDataPoint(p) ? p[3] : p.low;
 
   /**
    * Compute the actual X domain from series data (with zoom applied)
@@ -66,9 +76,9 @@ export function createAnnotationDragHandler(
       let dataXMax = Number.NEGATIVE_INFINITY;
 
       for (const s of series) {
-        if (s.type === 'pie') continue;
+        if (s.type === "pie") continue;
 
-        if (s.type === 'candlestick') {
+        if (s.type === "candlestick") {
           const data = s.data;
           for (const p of data) {
             const timestamp = getOHLCTimestamp(p);
@@ -115,9 +125,9 @@ export function createAnnotationDragHandler(
       let dataYMax = Number.NEGATIVE_INFINITY;
 
       for (const s of series) {
-        if (s.type === 'pie') continue;
+        if (s.type === "pie") continue;
 
-        if (s.type === 'candlestick') {
+        if (s.type === "candlestick") {
           const data = s.data;
           for (const p of data) {
             const high = getOHLCHigh(p);
@@ -146,11 +156,19 @@ export function createAnnotationDragHandler(
   /**
    * Convert canvas-space CSS pixels to data-space coordinates
    */
-  function canvasToData(canvasX: number, canvasY: number): { x: number; y: number } {
+  function canvasToData(
+    canvasX: number,
+    canvasY: number,
+  ): { x: number; y: number } {
     const chartOptions = chart.options;
     const rect = canvas.getBoundingClientRect();
 
-    const grid = chartOptions.grid ?? { left: 60, right: 20, top: 40, bottom: 40 };
+    const grid = chartOptions.grid ?? {
+      left: 60,
+      right: 20,
+      top: 40,
+      bottom: 40,
+    };
     const canvasWidth = rect.width;
     const canvasHeight = rect.height;
 
@@ -170,7 +188,7 @@ export function createAnnotationDragHandler(
     // Convert X coordinate
     if (xAxis) {
       const xFraction = (canvasX - plotLeft) / plotWidth;
-      if (xAxis.type === 'category' && Array.isArray((xAxis as any).data)) {
+      if (xAxis.type === "category" && Array.isArray((xAxis as any).data)) {
         // Category scale: map fraction to category index
         const data = (xAxis as any).data as any[];
         const index = Math.round(xFraction * (data.length - 1 || 1));
@@ -196,11 +214,19 @@ export function createAnnotationDragHandler(
   /**
    * Convert canvas-space CSS pixels to plot-space coordinates (0-1 fractions)
    */
-  function canvasToPlot(canvasX: number, canvasY: number): { x: number; y: number } {
+  function canvasToPlot(
+    canvasX: number,
+    canvasY: number,
+  ): { x: number; y: number } {
     const chartOptions = chart.options;
     const rect = canvas.getBoundingClientRect();
 
-    const grid = chartOptions.grid ?? { left: 60, right: 20, top: 40, bottom: 40 };
+    const grid = chartOptions.grid ?? {
+      left: 60,
+      right: 20,
+      top: 40,
+      bottom: 40,
+    };
     const canvasWidth = rect.width;
     const canvasHeight = rect.height;
 
@@ -238,18 +264,18 @@ export function createAnnotationDragHandler(
     const annotation = dragState.annotation;
     const updates: any = {}; // Use 'any' to bypass TypeScript union narrowing issues
 
-    if (annotation.type === 'lineX') {
+    if (annotation.type === "lineX") {
       // Constrain to horizontal movement only
       const { x } = canvasToData(canvasX, 0);
       updates.x = x;
-    } else if (annotation.type === 'lineY') {
+    } else if (annotation.type === "lineY") {
       // Constrain to vertical movement only
       const { y } = canvasToData(0, canvasY);
       updates.y = y;
-    } else if (annotation.type === 'text') {
+    } else if (annotation.type === "text") {
       // Free 2D movement (respect original space)
       const space = annotation.position.space;
-      if (space === 'plot') {
+      if (space === "plot") {
         const { x, y } = canvasToPlot(canvasX, canvasY);
         updates.position = { space, x, y };
       } else {
@@ -257,7 +283,7 @@ export function createAnnotationDragHandler(
         const { x, y } = canvasToData(canvasX, canvasY);
         updates.position = { space, x, y };
       }
-    } else if (annotation.type === 'point') {
+    } else if (annotation.type === "point") {
       // Free 2D movement in data space
       const { x, y } = canvasToData(canvasX, canvasY);
       updates.x = x;
@@ -281,22 +307,22 @@ export function createAnnotationDragHandler(
     const annotation = dragState.annotation;
     const updates: any = {}; // Use 'any' to bypass TypeScript union narrowing issues
 
-    if (annotation.type === 'lineX') {
+    if (annotation.type === "lineX") {
       const { x } = canvasToData(canvasX, 0);
       updates.x = x;
-    } else if (annotation.type === 'lineY') {
+    } else if (annotation.type === "lineY") {
       const { y } = canvasToData(0, canvasY);
       updates.y = y;
-    } else if (annotation.type === 'text') {
+    } else if (annotation.type === "text") {
       const space = annotation.position.space;
-      if (space === 'plot') {
+      if (space === "plot") {
         const { x, y } = canvasToPlot(canvasX, canvasY);
         updates.position = { space, x, y };
       } else {
         const { x, y } = canvasToData(canvasX, canvasY);
         updates.position = { space, x, y };
       }
-    } else if (annotation.type === 'point') {
+    } else if (annotation.type === "point") {
       const { x, y } = canvasToData(canvasX, canvasY);
       updates.x = x;
       updates.y = y;
@@ -326,7 +352,7 @@ export function createAnnotationDragHandler(
   function onKeyDown(e: KeyboardEvent): void {
     if (!dragState) return;
 
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       e.preventDefault();
       onPointerCancel();
     }
@@ -338,20 +364,20 @@ export function createAnnotationDragHandler(
   function cleanup(): void {
     if (!dragState) return;
 
-    window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('pointerup', onPointerUp);
-    window.removeEventListener('pointercancel', onPointerCancel);
-    document.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerCancel);
+    document.removeEventListener("keydown", onKeyDown);
 
     if (dragState.pointerId !== null) {
       try {
         canvas.releasePointerCapture(dragState.pointerId);
-      } catch {
+      } catch (err) {
         // Ignore errors (pointer may already be released)
       }
     }
 
-    document.body.style.cursor = '';
+    document.body.style.cursor = "";
     dragState = null;
   }
 
@@ -362,7 +388,7 @@ export function createAnnotationDragHandler(
     annotationIndex: number,
     annotation: AnnotationConfig,
     startPointerX: number,
-    startPointerY: number
+    startPointerY: number,
   ): void {
     // Cancel any existing drag
     if (dragState) {
@@ -378,19 +404,21 @@ export function createAnnotationDragHandler(
     };
 
     // Set cursor based on annotation type
-    if (annotation.type === 'lineX') {
-      document.body.style.cursor = 'ew-resize';
-    } else if (annotation.type === 'lineY') {
-      document.body.style.cursor = 'ns-resize';
+    if (annotation.type === "lineX") {
+      document.body.style.cursor = "ew-resize";
+    } else if (annotation.type === "lineY") {
+      document.body.style.cursor = "ns-resize";
     } else {
-      document.body.style.cursor = 'grabbing';
+      document.body.style.cursor = "grabbing";
     }
 
     // Attach window-level listeners for smooth dragging outside canvas
-    window.addEventListener('pointermove', onPointerMove, { passive: false });
-    window.addEventListener('pointerup', onPointerUp, { passive: true });
-    window.addEventListener('pointercancel', onPointerCancel, { passive: true });
-    document.addEventListener('keydown', onKeyDown, { passive: false });
+    window.addEventListener("pointermove", onPointerMove, { passive: false });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerCancel, {
+      passive: true,
+    });
+    document.addEventListener("keydown", onKeyDown, { passive: false });
 
     // Visual feedback: reduce opacity
     callbacks.onDragMove(annotationIndex, {

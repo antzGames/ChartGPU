@@ -1,6 +1,6 @@
-import type { ResolvedCandlestickSeriesConfig } from '../config/OptionResolver';
-import type { OHLCDataPoint, OHLCDataPointTuple } from '../config/types';
-import type { LinearScale } from '../utils/scales';
+import type { ResolvedCandlestickSeriesConfig } from "../config/OptionResolver";
+import type { OHLCDataPoint, OHLCDataPointTuple } from "../config/types";
+import type { LinearScale } from "../utils/scales";
 
 export interface CandlestickMatch {
   seriesIndex: number;
@@ -17,11 +17,15 @@ const parsePercent = (value: string): number | null => {
   return Number.isFinite(p) ? p : null;
 };
 
-const isTupleDataPoint = (p: OHLCDataPoint): p is OHLCDataPointTuple => Array.isArray(p);
+const isTupleDataPoint = (p: OHLCDataPoint): p is OHLCDataPointTuple =>
+  Array.isArray(p);
 
-const getTimestamp = (p: OHLCDataPoint): number => (isTupleDataPoint(p) ? p[0] : p.timestamp);
-const getOpen = (p: OHLCDataPoint): number => (isTupleDataPoint(p) ? p[1] : p.open);
-const getClose = (p: OHLCDataPoint): number => (isTupleDataPoint(p) ? p[2] : p.close);
+const getTimestamp = (p: OHLCDataPoint): number =>
+  isTupleDataPoint(p) ? p[0] : p.timestamp;
+const getOpen = (p: OHLCDataPoint): number =>
+  isTupleDataPoint(p) ? p[1] : p.open;
+const getClose = (p: OHLCDataPoint): number =>
+  isTupleDataPoint(p) ? p[2] : p.close;
 
 const categoryStepCache = new WeakMap<ReadonlyArray<OHLCDataPoint>, number>();
 
@@ -60,7 +64,7 @@ export function computeCandlestickBodyWidthRange(
   series: ResolvedCandlestickSeriesConfig,
   data: ReadonlyArray<OHLCDataPoint>,
   xScale: LinearScale,
-  plotWidthFallback?: number
+  plotWidthFallback?: number,
 ): number {
   if (data.length === 0) return 0;
 
@@ -88,7 +92,9 @@ export function computeCandlestickBodyWidthRange(
 
   // Fallback: approximate based on plot width and data length.
   if (!(categoryWidthRange > 0) || !Number.isFinite(categoryWidthRange)) {
-    const plotW = Number.isFinite(plotWidthFallback ?? Number.NaN) ? (plotWidthFallback as number) : 0;
+    const plotW = Number.isFinite(plotWidthFallback ?? Number.NaN)
+      ? (plotWidthFallback as number)
+      : 0;
     categoryWidthRange = plotW / Math.max(1, data.length);
   }
 
@@ -97,15 +103,17 @@ export function computeCandlestickBodyWidthRange(
   // - percent string: percent of category width in range units
   let width = 0;
   const rawBarWidth = series.barWidth;
-  if (typeof rawBarWidth === 'number') {
+  if (typeof rawBarWidth === "number") {
     width = Number.isFinite(rawBarWidth) ? Math.max(0, rawBarWidth) : 0;
-  } else if (typeof rawBarWidth === 'string') {
+  } else if (typeof rawBarWidth === "string") {
     const p = parsePercent(rawBarWidth);
     width = p == null ? 0 : categoryWidthRange * clamp01(p);
   }
 
   // Clamp by min/max width (in CSS px; our range-space is CSS px in interaction usage).
-  const minW = Number.isFinite(series.barMinWidth) ? Math.max(0, series.barMinWidth) : 0;
+  const minW = Number.isFinite(series.barMinWidth)
+    ? Math.max(0, series.barMinWidth)
+    : 0;
   const maxWCandidate = Number.isFinite(series.barMaxWidth)
     ? Math.max(0, series.barMaxWidth)
     : Number.POSITIVE_INFINITY;
@@ -115,9 +123,14 @@ export function computeCandlestickBodyWidthRange(
   return Number.isFinite(width) ? width : 0;
 }
 
-const monotonicTimestampCache = new WeakMap<ReadonlyArray<OHLCDataPoint>, boolean>();
+const monotonicTimestampCache = new WeakMap<
+  ReadonlyArray<OHLCDataPoint>,
+  boolean
+>();
 
-const isMonotonicNonDecreasingFiniteTimestamps = (data: ReadonlyArray<OHLCDataPoint>): boolean => {
+const isMonotonicNonDecreasingFiniteTimestamps = (
+  data: ReadonlyArray<OHLCDataPoint>,
+): boolean => {
   const cached = monotonicTimestampCache.get(data);
   if (cached !== undefined) return cached;
 
@@ -138,7 +151,10 @@ const isMonotonicNonDecreasingFiniteTimestamps = (data: ReadonlyArray<OHLCDataPo
   return true;
 };
 
-const lowerBoundByTimestamp = (data: ReadonlyArray<OHLCDataPoint>, xTarget: number): number => {
+const lowerBoundByTimestamp = (
+  data: ReadonlyArray<OHLCDataPoint>,
+  xTarget: number,
+): number => {
   let lo = 0;
   let hi = data.length;
   while (lo < hi) {
@@ -178,7 +194,7 @@ export function findCandlestick(
   y: number,
   xScale: LinearScale,
   yScale: LinearScale,
-  barWidthClip: number
+  barWidthClip: number,
 ): CandlestickMatch | null {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   if (!Number.isFinite(barWidthClip) || !(barWidthClip > 0)) return null;
@@ -191,7 +207,12 @@ export function findCandlestick(
   let best: CandlestickMatch | null = null;
   let bestDx = Number.POSITIVE_INFINITY;
 
-  const tryUpdate = (seriesIndex: number, dataIndex: number, point: OHLCDataPoint, dx: number): void => {
+  const tryUpdate = (
+    seriesIndex: number,
+    dataIndex: number,
+    point: OHLCDataPoint,
+    dx: number,
+  ): void => {
     if (!Number.isFinite(dx)) return;
     if (dx < bestDx) {
       bestDx = dx;
@@ -201,7 +222,10 @@ export function findCandlestick(
     if (dx === bestDx && best) {
       if (dataIndex < best.dataIndex) {
         best = { seriesIndex, dataIndex, point };
-      } else if (dataIndex === best.dataIndex && seriesIndex < best.seriesIndex) {
+      } else if (
+        dataIndex === best.dataIndex &&
+        seriesIndex < best.seriesIndex
+      ) {
         best = { seriesIndex, dataIndex, point };
       }
     }
