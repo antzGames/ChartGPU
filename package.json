@@ -56,6 +56,7 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "lint:duplication": "jscpd --config .jscpd.json",
+    "lint:deps": "knip",
     "validate:agents-md": "bash scripts/validate-agents-md.sh",
     "prepublishOnly": "npm run build"
   },
@@ -70,6 +71,7 @@
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.58.0",
     "vite": "^5.0.0",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "knip": "^6.1.1"
   }
 }

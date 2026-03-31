@@ -29,5 +29,8 @@ jobs:
       - name: Check for duplicate code
         run: npm run lint:duplication
 
+      - name: Check for unused dependencies
+        run: npm run lint:deps
+
       - name: Validate AGENTS.md consistency
         run: npm run validate:agents-md
